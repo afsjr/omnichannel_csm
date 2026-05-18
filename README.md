@@ -1,6 +1,18 @@
 # OmniChat CSM
 
-Sistema omnichannel de atendimento ao cliente com IA (triagem e rascunhos自动) para школа técnica de enfermagem.
+Sistema omnichannel de atendimento ao cliente com IA para escola técnica de enfermagem.
+
+## 🚀 Produção
+
+**Frontend:** https://omnichannel-csm.vercel.app
+
+### APIs Disponíveis
+| Endpoint | Descrição |
+|----------|------------|
+| `/api/login` | Login |
+| `/api/register` | Registro |
+| `/api/queue` | Fila de atendimentos |
+| `/api/db-test` | Teste banco |
 
 ## Arquitetura
 
