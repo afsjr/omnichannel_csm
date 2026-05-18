@@ -1,5 +1,5 @@
-const { verifyApiKey } = require('../lib/security');
-const { supabase } = require('../lib/db');
+const { verifyApiKey } = require('../../lib/security');
+const { supabase } = require('../../lib/db');
 
 async function login(req, res) {
   if (req.method !== 'POST') {
