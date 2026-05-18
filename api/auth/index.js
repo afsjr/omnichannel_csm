@@ -1,5 +1,6 @@
 const { verifyApiKey } = require('../../lib/security');
 const { supabase } = require('../../lib/db');
+const crypto = require('crypto');
 
 async function login(req, res) {
   if (req.method !== 'POST') {
@@ -23,8 +24,8 @@ async function login(req, res) {
       return res.status(401).json({ ok: false, error: 'Usuário não encontrado' });
     }
 
-    const bcrypt = require('bcrypt');
-    const validPassword = await bcrypt.compare(password, user.password);
+    const inputHash = crypto.createHash('sha256').update(password).digest('hex');
+    const validPassword = inputHash === user.password;
 
     if (!validPassword) {
       return res.status(401).json({ ok: false, error: 'Senha incorreta' });
@@ -68,8 +69,7 @@ async function register(req, res) {
   }
 
   try {
-    const bcrypt = require('bcrypt');
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
 
     const { data: user, error } = await supabase
       .from('users')
