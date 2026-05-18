@@ -1,6 +1,12 @@
 const { supabase } = require('../lib/db');
 
+const DEBUG_ENABLED = process.env.NODE_ENV !== 'production' || process.env.DEBUG === 'true';
+
 module.exports = async (req, res) => {
+  if (!DEBUG_ENABLED) {
+    return res.status(404).json({ ok: false, error: 'Endpoint não encontrado' });
+  }
+
   try {
     const debug = {
       supabaseUrl: process.env.SUPABASE_URL ? '✓ configurado' : '✗ não encontrado',
@@ -19,12 +25,12 @@ module.exports = async (req, res) => {
       return res.status(200).json({ 
         ok: true, 
         debug,
-        dbTest: error ? { error: error.message } : { contacts: data }
+        dbTest: error ? { error: error.message } : { contacts: data, count: data?.length || 0 }
       });
     }
 
     res.status(200).json({ ok: true, debug });
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message, stack: error.stack });
+    res.status(500).json({ ok: false, error: error.message });
   }
 };

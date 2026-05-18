@@ -1,3 +1,4 @@
+const { verifyApiKey } = require('../lib/security');
 const { 
   getQueue, 
   getMyConversations, 
@@ -33,7 +34,7 @@ async function handleRequest(req, res) {
     res.status(404).json({ ok: false, error: 'Endpoint não encontrado' });
   } catch (error) {
     console.error('API Error:', error);
-    res.status(500).json({ ok: false, error: error.message });
+    res.status(500).json({ ok: false, error: 'Erro interno do servidor' });
   }
 }
 
@@ -111,4 +112,9 @@ async function handleResolve(req, res) {
   res.status(200).json({ ok: true, data: result });
 }
 
-module.exports = handleRequest;
+module.exports = async (req, res) => {
+  if (!verifyApiKey(req, res)) {
+    return;
+  }
+  return handleRequest(req, res);
+};

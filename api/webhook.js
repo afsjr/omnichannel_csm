@@ -1,5 +1,7 @@
 const { saveIncomingMessage } = require('../lib/messages');
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
 function parseWebhookPayload(payload) {
   let data = payload;
 
@@ -73,9 +75,10 @@ module.exports = async (req, res) => {
   try {
     const payload = req.body || {};
 
-    console.log('=== EVOLUTION WEBHOOK ===');
-    console.log('Event:', payload.event);
-    console.log('Payload:', JSON.stringify(payload, null, 2).substring(0, 500));
+    if (!IS_PRODUCTION) {
+      console.log('=== EVOLUTION WEBHOOK ===');
+      console.log('Event:', payload.event);
+    }
 
     let messageData = payload;
 
@@ -101,15 +104,15 @@ module.exports = async (req, res) => {
 
     const saved = await saveIncomingMessage(enrichedPayload);
 
-    console.log('Message saved:', saved?.id);
-
     res.status(200).json({ 
       ok: true, 
       conversationId: saved?.conversation?.id,
       messageId: saved?.id
     });
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).json({ ok: false, error: error.message });
+    if (!IS_PRODUCTION) {
+      console.error('Webhook error:', error);
+    }
+    res.status(500).json({ ok: false, error: 'Erro ao processar mensagem' });
   }
 };

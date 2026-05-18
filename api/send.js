@@ -1,7 +1,12 @@
+const { verifyApiKey } = require('../lib/security');
 const { sendMessageToEvolution } = require('../lib/evolution');
 const { sendMessageByPhone } = require('../lib/messages');
 
 module.exports = async (req, res) => {
+  if (!verifyApiKey(req, res)) {
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.status(405).json({ ok: false, error: 'Method Not Allowed' });
     return;
@@ -26,11 +31,11 @@ module.exports = async (req, res) => {
 
     res.status(200).json({ 
       ok: true, 
-      evolution: evolutionResult,
+      evolution: evolutionResult.simulated ? { simulated: true } : { id: evolutionResult.id },
       message: saved
     });
   } catch (error) {
     console.error('Send error:', error);
-    res.status(500).json({ ok: false, error: error.message });
+    res.status(500).json({ ok: false, error: 'Erro ao enviar mensagem' });
   }
 };
