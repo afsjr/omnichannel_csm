@@ -1,19 +1,51 @@
-const { supabase } = require('../lib/db');
+/**
+ * API de Login
+ * 
+ * Autentica usuários e retorna token JWT para sessões.
+ * 
+ * Endpoint: POST /api/login
+ * 
+ * @example
+ * // Request
+ * curl -X POST https://omnichannel-csm.vercel.app/api/login \
+ *   -H "Content-Type: application/json" \
+ *   -d '{"email": "admin@csm.com", "password": "123456"}'
+ * 
+ * // Response
+ * {
+ *   "ok": true,
+ *   "data": {
+ *     "user": { "id": 1, "name": "Admin", "email": "admin@csm.com", "role": "admin" },
+ *     "token": "eyJhbGci..."
+ *   }
+ * }
+ */
 
+const { getSupabase } = require('../lib/db');
+
+/**
+ * Valida credenciais e retorna token JWT
+ */
 module.exports = async (req, res) => {
-  console.log('Login API called:', req.method, req.url);
-  
+  // Apenas aceita método POST
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
   }
 
   const { email, password } = req.body || {};
 
+  // Valida campos obrigatórios
   if (!email || !password) {
-    return res.status(400).json({ ok: false, error: 'Email e senha são obrigatórios' });
+    return res.status(400).json({ 
+      ok: false, 
+      error: 'Email e senha são obrigatórios' 
+    });
   }
 
   try {
+    const supabase = getSupabase();
+    
+    // 1. Busca usuário pelo email
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -24,6 +56,8 @@ module.exports = async (req, res) => {
       return res.status(401).json({ ok: false, error: 'Usuário não encontrado' });
     }
 
+    // 2. Valida senha com bcrypt
+    // Nota: Em produção, considere usar Supabase Auth
     const bcrypt = require('bcrypt');
     const validPassword = await bcrypt.compare(password, user.password);
 
@@ -31,6 +65,7 @@ module.exports = async (req, res) => {
       return res.status(401).json({ ok: false, error: 'Senha incorreta' });
     }
 
+    // 3. Gera token JWT
     const jwt = require('jsonwebtoken');
     const token = jwt.sign(
       { userId: user.id, companyId: user.company_id },
@@ -38,6 +73,7 @@ module.exports = async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // 4. Retorna dados do usuário (sem a senha!) e token
     return res.status(200).json({
       ok: true,
       data: {
