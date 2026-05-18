@@ -140,11 +140,9 @@ async function me(req, res) {
 }
 
 module.exports = async (req, res) => {
-  if (!verifyApiKey(req, res)) {
-    return;
-  }
-
   const { url } = req;
+
+  console.log('Auth API called:', url, 'method:', req.method);
 
   if (url.includes('/login')) {
     return login(req, res);
