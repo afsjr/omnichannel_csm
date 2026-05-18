@@ -1,12 +1,10 @@
 /**
- * API de Registro - Sem bcrypt
+ * API de Registro - v2 - crypto
  */
 
 const crypto = require('crypto');
 
 module.exports = async (req, res) => {
-  console.log('Register: Starting...');
-  
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
   }
@@ -30,12 +28,10 @@ module.exports = async (req, res) => {
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Use crypto instead of bcrypt
     const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-    console.log('Register: Password hashed with SHA256');
 
-    const insertResult = await supabase
+    // Tenta inserir
+    const { data: user, error } = await supabase
       .from('users')
       .insert({
         company_id: 1,
@@ -45,29 +41,30 @@ module.exports = async (req, res) => {
         role: 'admin',
         is_active: true
       })
-      .select('id, name, email, role');
+      .select('id, name, email, role')
+      .single();
 
-    console.log('Register: Insert result', JSON.stringify(insertResult));
-
-    if (insertResult.error) {
+    if (error) {
       return res.status(400).json({ 
         ok: false, 
-        error: insertResult.error.message,
-        details: insertResult.error
+        error: error.message,
+        code: error.code,
+        hint: error.hint,
+        details: error.details
       });
     }
 
     return res.status(201).json({
       ok: true,
+      version: 'v2-crypto',
       message: 'Usuário criado com sucesso!',
-      user: insertResult.data[0]
+      user
     });
   } catch (error) {
-    console.error('Register: Catch error', error);
     return res.status(500).json({ 
       ok: false, 
       error: error.message,
-      stack: error.stack
+      version: 'v2-crypto'
     });
   }
 };
