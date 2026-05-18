@@ -1,7 +1,17 @@
-const { supabase } = require('../lib/db');
+const { getSupabase } = require('../lib/db');
 
 module.exports = async (req, res) => {
   console.log('DB Test: Starting...');
+  
+  const supabase = getSupabase();
+  
+  if (!supabase) {
+    console.log('DB Test: Supabase not initialized');
+    return res.status(500).json({ 
+      ok: false, 
+      error: 'Supabase not initialized - check environment variables' 
+    });
+  }
   
   try {
     console.log('DB Test: Querying contacts...');
@@ -11,7 +21,7 @@ module.exports = async (req, res) => {
       .select('id, name, phone')
       .limit(3);
 
-    console.log('DB Test: contacts result:', { data: contacts, error });
+    console.log('DB Test: contacts result:', { error });
 
     if (error) {
       console.log('DB Test: Error:', error);
