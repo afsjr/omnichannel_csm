@@ -1,40 +1,24 @@
 /**
- * API de Login
+ * API de Login com suporte a Roles
  * 
- * Autentica usuários e retorna token JWT para sessões.
+ * Retorna dados do usuário incluindo seu nível de acesso.
  * 
- * Endpoint: POST /api/login
- * 
- * @example
- * // Request
- * curl -X POST https://omnichannel-csm.vercel.app/api/login \
- *   -H "Content-Type: application/json" \
- *   -d '{"email": "admin@csm.com", "password": "123456"}'
- * 
- * // Response
- * {
- *   "ok": true,
- *   "data": {
- *     "user": { "id": 1, "name": "Admin", "email": "admin@csm.com", "role": "admin" },
- *     "token": "eyJhbGci..."
- *   }
- * }
+ * Roles disponíveis:
+ * - master: Acesso total a todas as empresas
+ * - admin: Acesso total a uma empresa
+ * - leader: Pode gerenciar sua equipe
+ * - agent: Acesso apenas às suas próprias conversas
  */
 
 const { getSupabase } = require('../lib/db');
 
-/**
- * Valida credenciais e retorna token JWT
- */
 module.exports = async (req, res) => {
-  // Apenas aceita método POST
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
   }
 
   const { email, password } = req.body || {};
 
-  // Valida campos obrigatórios
   if (!email || !password) {
     return res.status(400).json({ 
       ok: false, 
@@ -45,19 +29,23 @@ module.exports = async (req, res) => {
   try {
     const supabase = getSupabase();
     
-    // 1. Busca usuário pelo email
+    // Busca usuário com dados adicionais (department, team leader)
     const { data: user, error } = await supabase
       .from('users')
-      .select('*')
+      .select(`
+        *,
+        departments(name),
+        team_leader:users!team_leader_id(name)
+      `)
       .eq('email', email)
+      .eq('is_active', true)  // Apenas usuários ativos
       .single();
 
     if (error || !user) {
-      return res.status(401).json({ ok: false, error: 'Usuário não encontrado' });
+      return res.status(401).json({ ok: false, error: 'Usuário não encontrado ou inativo' });
     }
 
-    // 2. Valida senha com bcrypt
-    // Nota: Em produção, considere usar Supabase Auth
+    // Valida senha
     const bcrypt = require('bcrypt');
     const validPassword = await bcrypt.compare(password, user.password);
 
@@ -65,15 +53,26 @@ module.exports = async (req, res) => {
       return res.status(401).json({ ok: false, error: 'Senha incorreta' });
     }
 
-    // 3. Gera token JWT
+    // Gera token JWT com dados completos do usuário
     const jwt = require('jsonwebtoken');
     const token = jwt.sign(
-      { userId: user.id, companyId: user.company_id },
+      { 
+        userId: user.id, 
+        companyId: user.company_id,
+        role: user.role,
+        departmentId: user.department_id
+      },
       process.env.JWT_SECRET || 'default-secret',
       { expiresIn: '7d' }
     );
 
-    // 4. Retorna dados do usuário (sem a senha!) e token
+    // Atualiza status online
+    await supabase
+      .from('users')
+      .update({ is_online: true })
+      .eq('id', user.id);
+
+    // Retorna dados completos do usuário incluindo permissões
     return res.status(200).json({
       ok: true,
       data: {
@@ -81,8 +80,16 @@ module.exports = async (req, res) => {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          company_id: user.company_id,
+          department_id: user.department_id,
+          department_name: user.departments?.name,
+          team_leader_id: user.team_leader_id,
+          team_leader_name: user.team_leader?.name,
+          is_online: true,
+          created_at: user.created_at
         },
+        permissions: getUserPermissions(user.role),
         token
       }
     });
@@ -91,3 +98,48 @@ module.exports = async (req, res) => {
     return res.status(500).json({ ok: false, error: 'Erro ao fazer login' });
   }
 };
+
+/**
+ * Retorna lista de permissões baseadas no role
+ */
+function getUserPermissions(role) {
+  const permissions = {
+    master: [
+      'users:create', 'users:read', 'users:update', 'users:delete',
+      'team:read', 'team:manage',
+      'conversations:read', 'conversations:read_all', 'conversations:assign', 'conversations:transfer', 'conversations:resolve',
+      'messages:read', 'messages:send',
+      'instances:create', 'instances:read', 'instances:update', 'instances:delete', 'instances:connect',
+      'settings:read', 'settings:write',
+      'reports:read', 'reports:export',
+      'departments:create', 'departments:read', 'departments:update', 'departments:delete',
+      'companies:create', 'companies:read', 'companies:update', 'companies:delete'
+    ],
+    admin: [
+      'users:create', 'users:read', 'users:update', 'users:delete',
+      'team:read', 'team:manage',
+      'conversations:read', 'conversations:read_all', 'conversations:assign', 'conversations:transfer', 'conversations:resolve',
+      'messages:read', 'messages:send',
+      'instances:create', 'instances:read', 'instances:update', 'instances:delete', 'instances:connect',
+      'settings:read', 'settings:write',
+      'reports:read', 'reports:export',
+      'departments:create', 'departments:read', 'departments:update', 'departments:delete'
+    ],
+    leader: [
+      'users:read',
+      'team:read',
+      'conversations:read', 'conversations:read_all', 'conversations:assign', 'conversations:transfer', 'conversations:resolve',
+      'messages:read', 'messages:send',
+      'instances:read',
+      'reports:read',
+      'departments:read'
+    ],
+    agent: [
+      'conversations:read', 'conversations:resolve',
+      'messages:read', 'messages:send',
+      'departments:read'
+    ]
+  };
+
+  return permissions[role] || [];
+}
