@@ -1,33 +1,57 @@
-const fastify = require('fastify')({ logger: true });
-const http = require('http');
-const { Server } = require('socket.io');
-const routes = require('./routes');
-const { registerSocket } = require('./websocket');
+require('dotenv').config();
 
-const server = http.createServer();
-const io = new Server(server, {
-  cors: { origin: '*' }
-});
+const { createContainer } = require('./dependencyInjection');
+const { initWebSocket } = require('./websocket');
+const cors = require('@fastify/cors');
 
-fastify.decorate('io', io);
+async function buildApp(options = {}) {
+  const { host = '0.0.0.0', port = 3000 } = options;
+  const container = createContainer(options);
 
-fastify.addHook('onRequest', async (request, reply) => {
-  reply.header('Access-Control-Allow-Origin', '*');
-  reply.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const fastify = require('fastify')({
+    logger: options.logger !== false
+  });
 
-  if (request.method === 'OPTIONS') {
-    reply.code(204).send();
+  await fastify.register(cors, {
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    credentials: true
+  });
+
+  fastify.decorate('container', container);
+  fastify.decorate('db', container.db);
+
+  fastify.register(require('./routes'), { prefix: '/api' });
+
+  await initWebSocket(fastify, container);
+
+  return { fastify, container, host, port };
+}
+
+async function start() {
+  const { fastify, container, host, port } = await buildApp();
+
+  try {
+    await fastify.listen({ host, port });
+    console.log(`Server running at http://${host}:${port}`);
+  } catch (err) {
+    fastify.log.error(err);
+    await container.close();
+    process.exit(1);
   }
-});
 
-fastify.register(routes);
+  const shutdown = async () => {
+    console.log('Shutting down...');
+    await fastify.close();
+    await container.close();
+    process.exit(0);
+  };
 
-server.on('request', fastify.server);
-registerSocket(io);
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
 
-const PORT = Number(process.env.PORT || 3000);
+module.exports = { buildApp, start };
 
-server.listen(PORT, '0.0.0.0', () => {
-  fastify.log.info(`Servidor rodando na porta ${PORT}`);
-});
+if (require.main === module) {
+  start();
+}
