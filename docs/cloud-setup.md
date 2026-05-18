@@ -6,38 +6,85 @@ Rodar o projeto com computador desligado, com backend, frontend e webhook em nuv
 ## Arquitetura
 - Frontend: Vercel
 - API: Vercel Functions (`/api`)
-- Banco: PostgreSQL gerenciado (Neon free no inicio)
-- WhatsApp: Evolution API enviando webhook para URL publica da Vercel
+- Banco: Supabase (PostgreSQL gerenciado)
+- WhatsApp: Evolution API enviando webhook para URL pública da Vercel
+- Realtime: Polling (5s) - Socket.io não funciona bem em serverless
 
-## Variaveis de ambiente (Vercel)
-- `DATABASE_URL`
-- `EVOLUTION_SEND_URL`
-- `EVOLUTION_API_KEY`
+## Variáveis de ambiente (Vercel)
+
+Configure as seguintes variáveis no dashboard da Vercel:
+
+| Variável | Valor |
+|----------|-------|
+| `SUPABASE_URL` | https://rccaiodmgvvudiplbodl.supabase.co |
+| `SUPABASE_SERVICE_KEY` | Sua chave do Supabase |
+| `EVOLUTION_API_URL` | https://api.ajuda.digital |
+| `EVOLUTION_API_KEY` | 02E16307DC4C-46EA-BA84-D0B08D394106 |
+| `EVOLUTION_INSTANCE` | omni_channel |
+| `INTERNAL_API_KEY` | Chave secreta para APIs internas |
 
 ## Endpoints
-- `POST /api/webhook`: recebe mensagens da Evolution e grava no banco
-- `POST /api/send`: envia mensagem para Evolution e grava saida
-- `GET /api/messages?company_id=1&limit=50`: lista mensagens
 
-## Passos de deploy
-1. Criar projeto no Neon e database Postgres.
-2. Executar [backend/src/db/schema.sql](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/db/schema.sql) no banco.
-3. Configurar variaveis no projeto da Vercel.
-4. Publicar repositorio na Vercel.
-5. Configurar webhook da Evolution para:
-   - `https://SEU_DOMINIO.vercel.app/api/webhook`
+- `POST /api/webhook` - Recebe mensagens da Evolution API
+- `POST /api/send` - Envia mensagem para WhatsApp
+- `GET /api/messages` - Lista conversas (queue, my-conversations, conversation/:id)
+- `POST /api/messages/assign` - Atribui conversa a atendente
+- `POST /api/messages/resolve` - Encerrar conversa
 
-## Neon free (checklist rapido)
-1. Em Neon, criar projeto na regiao mais proxima dos usuarios.
-2. Copiar a connection string `DATABASE_URL` (pooled, quando disponivel).
-3. Salvar `DATABASE_URL` na Vercel (Production e Preview).
-4. Rodar o schema SQL no editor do Neon.
-5. Validar endpoint `GET /api/messages?company_id=1`.
+## Passos de Deploy
 
-Explicacao tecnica:
-Usar connection string pooled ajuda em ambiente serverless, pois evita saturar conexoes quando funcoes escalam em paralelo.
+### 1. Configurar Supabase
+- O banco já está configurado com as tabelas necessárias
+- A URL já está no projeto
+
+### 2. Configurar Vercel
+1. Criar projeto na Vercel conectando ao GitHub
+2. Adicionar as variáveis de ambiente acima
+3. Fazer deploy do projeto
+
+### 3. Configurar Webhook na Evolution API
+```bash
+curl -X POST "https://api.ajuda.digital/webhook/set/omni_channel" \
+  -H "Content-Type: application/json" \
+  -H "apikey: 02E16307DC4C-46EA-BA84-D0B08D394106" \
+  -d '{
+    "webhook": {
+      "enabled": true,
+      "url": "https://SEU_DOMINIO.vercel.app/api/webhook",
+      "webhookByEvents": false,
+      "events": ["MESSAGES_UPSERT", "SEND_MESSAGE", "CONNECTION_UPDATE"]
+    }
+  }'
+```
+
+Substitua `SEU_DOMINIO.vercel.app` pelo seu domínio real.
+
+### 4. Testar
+- Acesse `https://SEU_DOMINIO.vercel.app` para o frontend
+- Teste o webhook: `https://SEU_DOMINIO.vercel.app/api/messages?company_id=1`
+
+## Segurança
+
+### API Key Interna
+Todas as APIs (exceto webhook) requerem a header `X-API-Key`:
+```bash
+curl -H "X-API-Key: SUA_CHAVE_SECRETA" \
+  "https://SEU_DOMINIO.vercel.app/api/messages/queue?company_id=1"
+```
+
+### Evitar Abusos
+- Rate limiting implementado no frontend via polling
+- API key interna protege endpoints sensíveis
+- Webhook validado pela Evolution API (apikey header)
 
 ## Realtime na Vercel
-Socket.io persistente nao e o caminho ideal em serverless. No MVP cloud:
-- usar polling curto no frontend (5s)
-- evoluir depois para WebSocket dedicado ou Supabase Realtime
+Socket.io persistente não funciona bem em serverless. No MVP cloud:
+- Usar polling curto no frontend (5s)
+- O frontend já está configurado para polling
+- Para produção: considerar Supabase Realtime ou WebSocket dedicado
+
+## Deploy do Frontend
+O frontend React está na pasta `/frontend`. Configure na Vercel:
+- Framework Preset: Vite
+- Build Command: `npm run build`
+- Output Directory: `dist`

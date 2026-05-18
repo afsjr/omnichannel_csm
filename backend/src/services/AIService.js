@@ -141,7 +141,8 @@ function createAIServiceContainer(container) {
   const triageService = new TriageService({
     llmProvider,
     conversationRepository: container.repositories.conversation,
-    messageRepository: container.repositories.message
+    messageRepository: container.repositories.message,
+    departmentRepository: container.repositories.department
   });
 
   const aiDraftService = new AIDraftService({

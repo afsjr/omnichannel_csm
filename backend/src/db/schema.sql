@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   priority INT DEFAULT 0, -- 0=normal, 1=alta, 2=urgente
   ai_draft TEXT, -- Rascunho gerado pela IA
   ai_confidence DECIMAL(3,2), -- Confiança da triagem (0.00 - 1.00)
+  funnel_stage TEXT DEFAULT 'unclassified', -- topo, meio, fundo (para Comercial)
   last_message_at TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW()
 );

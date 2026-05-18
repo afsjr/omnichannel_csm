@@ -28,13 +28,20 @@ Objetivo: permitir continuidade em qualquer ambiente, sem perda de informacao.
 - Servicos:
   - mensagens: [backend/src/services/messageService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/messageService.js)
   - Evolution: [backend/src/services/evolutionService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/evolutionService.js)
+  - Triage (IA): [backend/src/services/TriageService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/TriageService.js)
+  - AI Draft (IA): [backend/src/services/AIDraftService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/AIDraftService.js)
+  - Funil: [backend/src/services/FunnelClassificationService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/FunnelClassificationService.js)
+- Controllers:
+  - AI: [backend/src/controllers/aiController.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/controllers/aiController.js)
+  - Dashboard: [backend/src/controllers/dashboardController.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/controllers/dashboardController.js)
 - Frontend:
-  - app realtime: [frontend/src/pages/App.jsx](/Users/itouch/Documents/projetos_escola/omnichannel_csm/frontend/src/pages/App.jsx)
+  - app realtime: [frontend/src/pages/Dashboard.jsx](/Users/itouch/Documents/projetos_escola/omnichannel_csm/frontend/src/pages/Dashboard.jsx)
+  - chat: [frontend/src/components/ChatWindow.jsx](/Users/itouch/Documents/projetos_escola/omnichannel_csm/frontend/src/components/ChatWindow.jsx)
 - Infra: [docker-compose.yml](/Users/itouch/Documents/projetos_escola/omnichannel_csm/docker-compose.yml)
 
 ## 4) Status Atual (Hoje)
 
-Data de referencia: 2026-05-05
+Data de referencia: 2026-05-18
 
 Concluido:
 - Estrutura inicial de pastas de backend e frontend criada.
@@ -50,6 +57,12 @@ Concluido:
 - Frontend adaptado para leitura periodica de mensagens (polling 5s), compativel com Vercel.
 - Arquivo de setup cloud criado.
 - Framework BMAD documentado no repositorio com checklist de Go/No-Go.
+- **SISTEMA DE IA IMPLEMENTADO**: Triagem automatica de setores + geracao de rascunho de resposta.
+- **PERSISTENCIA DE ANALISE IA**: Historico de analise IA salvo como mensagem do sistema no chat.
+- **CLASSIFICACAO DE FUNIL**: Sistema de identificacao de topo/meio/fundo de funil para setor Comercial.
+- **DASHBOARD DE ESTATISTICAS**: View de estatisticas com periodo dia/semana/mes, por setor e por atendente.
+- **CONVERSAS ENCERRADAS**: Secao para ver historico de conversas resolvidas com chat em modo somente leitura.
+- **REABERTURA DE CONVERSAS**: Sistema permite reabrir conversas pelo botao ou automaticamente quando cliente envia nova mensagem.
 
 Pendente imediato:
 - Executar schema no PostgreSQL cloud e validar conexao real.
@@ -61,12 +74,18 @@ Pendente imediato:
 
 ## 5) Proximos Passos (Ordem)
 
-1. Integracao real Evolution (entrada e envio com contrato correto).
-2. Login seguro + autorizacao por empresa (tenant isolation).
-3. Endpoint de listagem de conversas por empresa.
-4. Endpoint de listagem de mensagens por conversa + filtros.
-5. Atribuicao de conversa para atendente.
-6. Trilha de auditoria e politicas de retencao (LGPD).
+1. ~~Integracao real Evolution (entrada e envio com contrato correto).~~
+2. ~~Login seguro + autorizacao por empresa (tenant isolation).~~
+3. ~~Endpoint de listagem de conversas por empresa.~~
+4. ~~Endpoint de listagem de mensagens por conversa + filtros.~~
+5. ~~Atribuicao de conversa para atendente.~~
+6. ~~Sistema de IA com triagem e rascunho automatico.~~
+7. **Testes end-to-end**: Validar fluxo completo (webhook -> triagem IA -> rascunho -> envio).
+8. **Melhorar UI do dashboard de estatisticas**: Graficos visuais.
+9. **Sistema de notificacoes push**: Alertas para novos atendimentos.
+10. **Trilha de auditoria e politicas de retencao (LGPD)**.
+11. **Integração com chat de site** (canal adicional).
+12. **App mobile basico** (PWA).
 
 ## 6) Como Atualizar Este Arquivo
 
@@ -151,3 +170,61 @@ Padrao recomendado por entrega:
   - Escopo oficial sem Meta/Instagram, com foco em WhatsApp + chat de site.
 - Proximo passo direto:
   - Fechar setup Neon free e validar conexao com Vercel.
+
+### 2026-05-18 - Sistema de IA com Triagem e Rascunho
+- Arquivos alterados/criados:
+  - backend/src/services/FunnelClassificationService.js (NOVO)
+  - backend/src/services/TriageService.js
+  - backend/src/services/AIDraftService.js
+  - backend/src/controllers/aiController.js
+  - backend/src/repositories/MessageRepository.js
+  - backend/src/repositories/ConversationRepository.js
+  - backend/src/db/schema.sql
+  - frontend/src/components/ChatWindow.jsx
+  - frontend/src/index.css
+- Resultado funcional:
+  - IA classifica automaticamente o setor e gera rascunho de resposta.
+  - Analise IA e salvo no historico do chat como mensagem do sistema.
+  - Classificacao de funil (topo/meio/fundo) para setor Comercial.
+  - Botao "Estatisticas" no dashboard para ver volume por dia/semana/mes.
+- Proximo passo direto:
+  - Testar fluxo completo com Evolution conectada.
+
+### 2026-05-18 - Dashboard de Estatisticas
+- Arquivos alterados:
+  - backend/src/controllers/dashboardController.js
+  - backend/src/routes/index.js
+  - frontend/src/pages/Dashboard.jsx
+  - frontend/src/index.css
+- Resultado funcional:
+  - View de estatisticas com cards para hoje/semana/mes.
+  - Tabela de metricas por setor (ativos, resolvidos por periodo).
+  - Tabela de metricas por atendente (em atendimento, resolvidos hoje).
+  - Badges visuais para estagio do funil no chat.
+- Proximo passo direto:
+  - Adicionar graficos visuais e exportar para PDF/Excel.
+
+### 2026-05-18 - Historico de Conversas Encerradas e Reabertura
+- Arquivos alterados/criados:
+  - backend/src/repositories/ConversationRepository.js
+  - backend/src/services/ChatService.js
+  - backend/src/controllers/messageController.js
+  - backend/src/routes/index.js
+  - frontend/src/contexts/ChatContext.jsx
+  - frontend/src/pages/Dashboard.jsx
+  - frontend/src/components/ChatWindow.jsx
+  - frontend/src/index.css
+- Resultado funcional:
+  - Secao "Encerradas" no sidebar lista conversas resolvidas.
+  - Botao ↩️ para reabrir conversas resolvidas.
+  - Chat em modo somente leitura para conversas encerradas.
+  - Webhook detecta mensagem de cliente em conversa resolvida e reabre automaticamente (status volta para pending).
+- Proximo passo direto:
+  - Testar reabertura via botao e via mensagem do cliente.
+
+### 2026-05-18 - Correcao Botao Estatisticas
+- Arquivos alterados:
+  - frontend/src/pages/Dashboard.jsx
+- Problema: URL do dashboard nao tinha o prefixo /api
+- Solucao: Adicionado API_PREFIX = '/api' na URL de fetch
+- Resultado: Botao de estatisticas funciona corretamente

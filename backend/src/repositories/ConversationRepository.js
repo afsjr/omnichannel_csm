@@ -9,12 +9,7 @@ class ConversationRepository extends SupabaseBaseRepository {
   async findById(id) {
     const { data, error } = await this.client
       .from('conversations')
-      .select(`
-        *,
-        departments(name),
-        users!conversations_assigned_to_fkey(name),
-        contacts(name, phone)
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -22,7 +17,7 @@ class ConversationRepository extends SupabaseBaseRepository {
       throw error;
     }
     return {
-      rows: data ? [this.formatConversationData(data)] : [],
+      rows: data ? [data] : [],
       rowCount: data ? 1 : 0
     };
   }
@@ -44,12 +39,7 @@ class ConversationRepository extends SupabaseBaseRepository {
   async findByCompany(companyId, filters = {}) {
     let query = this.client
       .from('conversations')
-      .select(`
-        *,
-        departments(name),
-        users!conversations_assigned_to_fkey(name),
-        contacts(name, phone)
-      `)
+      .select('*')
       .eq('company_id', companyId);
 
     if (filters.status) {
@@ -78,7 +68,7 @@ class ConversationRepository extends SupabaseBaseRepository {
 
     if (error) throw error;
     return {
-      rows: data?.map(c => this.formatConversationData(c)) || [],
+      rows: data || [],
       rowCount: data?.length || 0
     };
   }
@@ -115,6 +105,7 @@ class ConversationRepository extends SupabaseBaseRepository {
     if (data.priority !== undefined) updateData.priority = data.priority;
     if (data.aiDraft !== undefined) updateData.ai_draft = data.aiDraft;
     if (data.aiConfidence !== undefined) updateData.ai_confidence = data.aiConfidence;
+    if (data.funnelStage !== undefined) updateData.funnel_stage = data.funnelStage;
 
     if (data.updateLastMessage !== false) {
       updateData.last_message_at = new Date().toISOString();
@@ -154,6 +145,30 @@ class ConversationRepository extends SupabaseBaseRepository {
       assignedTo: null,
       status: 'queued'
     });
+  }
+
+  async reopen(conversationId) {
+    return this.update(conversationId, {
+      assignedTo: null,
+      status: 'pending'
+    });
+  }
+
+  async findResolved(companyId, options = {}) {
+    let query = this.client
+      .from('conversations')
+      .select('*, contacts(name, phone), departments(name), users(name)')
+      .eq('company_id', companyId)
+      .eq('status', 'resolved')
+      .order('last_message_at', { ascending: false });
+
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return { rows: data || [], rowCount: data?.length || 0 };
   }
 
   formatConversationData(conv) {

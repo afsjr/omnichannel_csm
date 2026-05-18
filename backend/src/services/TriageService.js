@@ -1,4 +1,5 @@
 const LLMProvider = require('../providers/LLMProvider');
+const FunnelClassificationService = require('./FunnelClassificationService');
 
 const DEPARTMENT_PROMPT = `Você é um assistente de triagem de mensagens de uma escola técnica de enfermagem. Analise a mensagem do aluno e classifique qual setor deve atender.
 
@@ -17,11 +18,13 @@ INSTRUÇÕES:
 Se houver mais de um setor applicable, escolha o principal baseado na necessidade mais urgente.`;
 
 class TriageService {
-  constructor({ llmProvider, conversationRepository, messageRepository }) {
+  constructor({ llmProvider, conversationRepository, messageRepository, departmentRepository }) {
     this.llmProvider = llmProvider || new LLMProvider();
     this.conversationRepository = conversationRepository;
     this.messageRepository = messageRepository;
+    this.departmentRepository = departmentRepository;
     this.departments = ['Comercial', 'Financeiro', 'Secretaria', 'Acadêmico'];
+    this.funnelService = new FunnelClassificationService();
   }
 
   async triage(conversationId) {
@@ -40,6 +43,8 @@ class TriageService {
       .map(m => `${m.sender === 'user' ? 'Atendente' : 'Aluno'} (${m.time}): ${m.content}`)
       .join('\n');
 
+    const lastMessage = messages[messages.length - 1].content;
+
     const result = await this.llmProvider.classify(
       conversationHistory,
       this.departments,
@@ -55,10 +60,13 @@ class TriageService {
       confidence = Math.min(0.95, 0.3 + (1 - totalTokens / 1000) * 0.3);
     }
 
-    const conversation = await this.conversationRepository.update(conversationId, {
+    const funnelResult = this.funnelService.classifyFromMessage(lastMessage, classifiedDepartment);
+
+    await this.conversationRepository.update(conversationId, {
       departmentId: departmentResult?.id || null,
       status: departmentResult ? 'queued' : 'pending',
-      aiConfidence: confidence
+      aiConfidence: confidence,
+      funnelStage: funnelResult?.stage || 'unclassified'
     });
 
     return {
@@ -66,6 +74,7 @@ class TriageService {
       department: classifiedDepartment,
       departmentId: departmentResult?.id || null,
       confidence,
+      funnel: funnelResult,
       rawResponse: result.content
     };
   }
@@ -81,11 +90,8 @@ class TriageService {
   }
 
   async findDepartmentByName(name) {
-    if (!this.conversationRepository) return null;
-    const result = await this.conversationRepository.db.query(
-      'SELECT * FROM departments WHERE LOWER(name) = LOWER($1) LIMIT 1',
-      [name]
-    );
+    if (!this.departmentRepository) return null;
+    const result = await this.departmentRepository.findByName(name);
     return result.rows[0] || null;
   }
 }

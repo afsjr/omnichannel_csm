@@ -1,6 +1,7 @@
 class EvolutionProvider {
   constructor(config = {}) {
-    this.baseUrl = config.baseUrl || process.env.EVOLUTION_API_URL;
+    const rawUrl = config.baseUrl || process.env.EVOLUTION_API_URL || '';
+    this.baseUrl = rawUrl.includes('/api/') ? rawUrl.replace(/\/api$/, '') : rawUrl;
     this.apiKey = config.apiKey || process.env.EVOLUTION_API_KEY;
     this.instanceName = config.instanceName || process.env.EVOLUTION_INSTANCE;
   }
@@ -41,17 +42,23 @@ class EvolutionProvider {
     return response.json();
   }
 
-  async sendMedia(phone, mediaUrl, caption = '', options = {}) {
+  async sendMedia(phone, media, caption = '', options = {}) {
     const url = `${this.baseUrl}/message/sendMedia/${this.instanceName}`;
+    
     const body = {
       number: this.formatPhone(phone),
-      mediaUrl,
       caption,
       options: {
         delay: options.delay || 1000,
         presence: options.presence || 'typing'
       }
     };
+
+    if (media.startsWith('http')) {
+      body.mediaUrl = media;
+    } else {
+      body.media = media;
+    }
 
     const response = await fetch(url, {
       method: 'POST',

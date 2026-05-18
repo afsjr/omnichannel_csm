@@ -8,7 +8,7 @@ class MessageRepository extends SupabaseBaseRepository {
   async findByConversation(conversationId, options = {}) {
     let query = this.client
       .from('messages')
-      .select('*, users(name)')
+      .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
 
@@ -24,7 +24,7 @@ class MessageRepository extends SupabaseBaseRepository {
 
     if (error) throw error;
     return {
-      rows: data?.map(m => ({ ...m, sender_name: m.users?.name })) || [],
+      rows: data || [],
       rowCount: data?.length || 0
     };
   }
@@ -44,7 +44,7 @@ class MessageRepository extends SupabaseBaseRepository {
     return { rows: data ? [data] : [], rowCount: data ? 1 : 0 };
   }
 
-  async create(data) {
+async create(data) {
     const insertData = {
       conversation_id: data.conversationId,
       sender_type: data.senderType || 'contact',
@@ -52,7 +52,7 @@ class MessageRepository extends SupabaseBaseRepository {
       content: data.content,
       direction: data.direction || 'incoming',
       status: data.status || 'received',
-      metadata: data.metadata ? JSON.stringify(data.metadata) : null
+      metadata: data.metadata ? (typeof data.metadata === 'string' ? data.metadata : JSON.stringify(data.metadata)) : null
     };
 
     const { data: result, error } = await this.client
@@ -65,18 +65,26 @@ class MessageRepository extends SupabaseBaseRepository {
     return { rows: [result], rowCount: 1 };
   }
 
-  async getConversationHistory(conversationId, limit = 50) {
-    return this.findByConversation(conversationId, { limit });
-  }
+async createIncoming(conversationId, content, metadata = {}) {
+    const msgMetadata = {
+      ...metadata
+    };
 
-  async createIncoming(conversationId, content, metadata = {}) {
+    if (metadata.media_type) {
+      msgMetadata.media_type = metadata.media_type;
+      msgMetadata.media_url = metadata.media_url;
+      msgMetadata.media_mimetype = metadata.media_mimetype;
+      msgMetadata.media_caption = metadata.media_caption;
+      msgMetadata.media_filesize = metadata.media_filesize;
+    }
+
     return this.create({
       conversationId,
       senderType: 'contact',
       content,
       direction: 'incoming',
       status: 'received',
-      metadata
+      metadata: msgMetadata
     });
   }
 
@@ -89,6 +97,21 @@ class MessageRepository extends SupabaseBaseRepository {
       direction: 'outgoing',
       status,
       metadata: {}
+    });
+  }
+
+  async createSystem(conversationId, content, actionType, metadata = {}) {
+    return this.create({
+      conversationId,
+      senderType: 'ai',
+      senderId: null,
+      content,
+      direction: 'incoming',
+      status: 'ai_action',
+      metadata: {
+        action: actionType,
+        ...metadata
+      }
     });
   }
 }

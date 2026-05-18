@@ -1,17 +1,276 @@
 import { create } from 'zustand'
 
-export const useChatStore = create((set) => ({
-  conversations: [],
+const API = '/api'
+
+async function apiFetch(endpoint, options = {}) {
+  const auth = JSON.parse(localStorage.getItem('omnichat-auth') || '{}')
+  const state = auth.state || {}
+  
+  return fetch(`${API}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+      ...options.headers
+    }
+  })
+}
+
+export const useChatStore = create((set, get) => ({
+  queue: [],
+  myConversations: [],
+  resolvedConversations: [],
+  contacts: [],
   activeConversation: null,
   messages: [],
-  queue: [],
   draft: null,
-  
-  setActiveConversation: (conv) => set({ activeConversation: conv, messages: [], draft: conv?.ai_draft }),
-  addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
-  setQueue: (queue) => set({ queue }),
-  setDraft: (draft) => set({ draft }),
-  clearDraft: () => set({ draft: null })
+  draftConfidence: null,
+  isLoading: false,
+  isAILoading: false,
+  classifiedDepartment: null,
+  error: null,
+
+  fetchQueue: async (companyId = 1, departmentId = null) => {
+    set({ isLoading: true })
+    const url = `/messages/queue?companyId=${companyId}${departmentId ? `&departmentId=${departmentId}` : ''}`
+    const res = await apiFetch(url)
+    const data = await res.json()
+    if (data.ok) {
+      set({ queue: data.data, isLoading: false })
+    } else {
+      set({ error: data.error, isLoading: false })
+    }
+  },
+
+  fetchMyConversations: async (companyId = 1, userId = null) => {
+    const url = `/messages/my-conversations?companyId=${companyId}${userId ? `&userId=${userId}` : ''}`
+    const res = await apiFetch(url)
+    const data = await res.json()
+    if (data.ok) {
+      set({ myConversations: data.data })
+    }
+  },
+
+  fetchResolvedConversations: async (companyId = 1) => {
+    const url = `/messages/resolved?companyId=${companyId}`
+    const res = await apiFetch(url)
+    const data = await res.json()
+    if (data.ok) {
+      set({ resolvedConversations: data.data })
+    }
+  },
+
+  fetchConversation: async (id) => {
+    set({ isLoading: true })
+    const res = await apiFetch(`/messages/conversation/${id}`)
+    const data = await res.json()
+    if (data.ok) {
+      set({ 
+        activeConversation: data.data.conversation,
+        messages: data.data.messages,
+        draft: data.data.conversation.ai_draft,
+        draftConfidence: data.data.conversation.ai_confidence,
+        isLoading: false
+      })
+    } else {
+      set({ error: data.error, isLoading: false })
+    }
+  },
+
+  processWithAI: async (conversationId) => {
+    set({ isAILoading: true })
+    const res = await apiFetch('/ai/process', {
+      method: 'POST',
+      body: JSON.stringify({ conversationId })
+    })
+    const data = await res.json()
+    
+    if (data.ok) {
+      const { draft, confidence } = data.data.draft
+      const { department, departmentId } = data.data.triage
+      
+      set((s) => ({
+        draft,
+        draftConfidence: confidence,
+        classifiedDepartment: department,
+        activeConversation: s.activeConversation ? {
+          ...s.activeConversation,
+          department_name: department,
+          department_id: departmentId,
+          ai_draft: draft,
+          ai_confidence: confidence
+        } : null,
+        isAILoading: false
+      }))
+      
+      await get().fetchConversation(conversationId)
+    } else {
+      set({ error: data.error, isAILoading: false })
+    }
+    return data
+  },
+
+  setActiveConversation: (conv) => {
+    set({ activeConversation: conv, messages: [], draft: conv?.ai_draft, draftConfidence: conv?.ai_confidence, classifiedDepartment: conv?.department_name })
+    if (conv) {
+      get().fetchConversation(conv.id)
+    }
+  },
+
+  assignConversation: async (conversationId, userId) => {
+    const res = await apiFetch('/messages/assign', {
+      method: 'POST',
+      body: JSON.stringify({ conversationId, userId })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      const { queue, myConversations } = get()
+      const conv = queue.find(c => c.id === conversationId)
+      if (conv) {
+        set({
+          queue: queue.filter(c => c.id !== conversationId),
+          myConversations: [conv, ...myConversations],
+          activeConversation: conv
+        })
+        get().fetchConversation(conversationId)
+        
+        setTimeout(() => {
+          get().processWithAI(conversationId)
+        }, 500)
+      }
+    }
+    return data
+  },
+
+  sendMessage: async (content, senderId) => {
+    const { activeConversation } = get()
+    if (!activeConversation) return
+
+    const res = await apiFetch('/messages/send', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        conversationId: activeConversation.id, 
+        content,
+        senderId 
+      })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      set((s) => ({ messages: [...s.messages, data.message] }))
+    }
+    return data
+  },
+
+  updateDraft: async (draft) => {
+    const { activeConversation } = get()
+    if (!activeConversation) return
+
+    const res = await apiFetch('/messages/draft', {
+      method: 'POST',
+      body: JSON.stringify({ conversationId: activeConversation.id, draft })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      set({ draft, draftConfidence: data.data.ai_confidence })
+    }
+  },
+
+  resolveConversation: async (conversationId) => {
+    const res = await apiFetch('/messages/resolve', {
+      method: 'POST',
+      body: JSON.stringify({ conversationId })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      const conv = get().myConversations.find(c => c.id === conversationId)
+      set((s) => ({
+        myConversations: s.myConversations.filter(c => c.id !== conversationId),
+        resolvedConversations: conv ? [conv, ...s.resolvedConversations] : s.resolvedConversations,
+        activeConversation: null,
+        messages: [],
+        draft: null
+      }))
+    }
+    return data
+  },
+
+  reopenConversation: async (conversationId) => {
+    const res = await apiFetch('/messages/reopen', {
+      method: 'POST',
+      body: JSON.stringify({ conversationId })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      const conv = get().resolvedConversations.find(c => c.id === conversationId)
+      set((s) => ({
+        resolvedConversations: s.resolvedConversations.filter(c => c.id !== conversationId),
+        queue: conv ? [conv, ...s.queue] : s.queue
+      }))
+    }
+    return data
+  },
+
+  fetchContacts: async (companyId = 1, search = '') => {
+    const url = `/contacts?companyId=${companyId}${search ? `&search=${encodeURIComponent(search)}` : ''}`
+    const res = await apiFetch(url)
+    const data = await res.json()
+    if (data.ok) {
+      set({ contacts: data.data })
+    }
+  },
+
+  createContact: async (name, phone, email = null) => {
+    const res = await apiFetch('/contacts', {
+      method: 'POST',
+      body: JSON.stringify({ companyId: 1, name, phone, email })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      set((s) => ({ contacts: [data.data, ...s.contacts] }))
+    }
+    return data
+  },
+
+  startConversation: async (contactId, content) => {
+    const res = await apiFetch('/contacts/start-conversation', {
+      method: 'POST',
+      body: JSON.stringify({ contactId, content })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      set((s) => ({
+        queue: [data.data.conversation, ...s.queue],
+        activeConversation: data.data.conversation
+      }))
+      if (data.data.conversation.id) {
+        get().fetchConversation(data.data.conversation.id)
+      }
+    }
+    return data
+  },
+
+  sendMediaMessage: async (type, url, caption) => {
+    const { activeConversation } = get()
+    if (!activeConversation) return
+
+    const res = await apiFetch('/messages/send-media', {
+      method: 'POST',
+      body: JSON.stringify({
+        conversationId: activeConversation.id,
+        type,
+        url,
+        caption
+      })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      set((s) => ({ messages: [...s.messages, data.message] }))
+    }
+    return data
+  },
+
+  addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
+  clearError: () => set({ error: null })
 }))
 
 export default useChatStore

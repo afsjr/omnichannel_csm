@@ -88,7 +88,100 @@ async function getRecentActivity(req, reply) {
   return reply.send({ ok: true, data: result.rows });
 }
 
+async function getDashboardStats(req, reply) {
+  const { companyId } = req.query || {};
+  const db = req.server.container.db;
+  const companyIdNum = Number(companyId) || 1;
+
+  const today = await db.query(`
+    SELECT 
+      COUNT(*) FILTER (WHERE status != 'resolved') as active,
+      COUNT(*) FILTER (WHERE status = 'resolved' AND DATE(last_message_at) = CURRENT_DATE) as resolved
+    FROM conversations
+    WHERE company_id = $1
+  `, [companyIdNum]);
+
+  const thisWeek = await db.query(`
+    SELECT 
+      COUNT(*) FILTER (WHERE status != 'resolved') as active,
+      COUNT(*) FILTER (WHERE status = 'resolved' AND last_message_at >= DATE_TRUNC('week', CURRENT_DATE)) as resolved
+    FROM conversations
+    WHERE company_id = $1
+  `, [companyIdNum]);
+
+  const thisMonth = await db.query(`
+    SELECT 
+      COUNT(*) FILTER (WHERE status != 'resolved') as active,
+      COUNT(*) FILTER (WHERE status = 'resolved' AND last_message_at >= DATE_TRUNC('month', CURRENT_DATE)) as resolved
+    FROM conversations
+    WHERE company_id = $1
+  `, [companyIdNum]);
+
+  const byDepartment = await db.query(`
+    SELECT 
+      d.id,
+      d.name,
+      COUNT(*) FILTER (WHERE c.status != 'resolved') as active,
+      COUNT(*) FILTER (WHERE c.status = 'resolved' AND DATE(c.last_message_at) = CURRENT_DATE) as resolved_today,
+      COUNT(*) FILTER (WHERE c.status = 'resolved' AND c.last_message_at >= DATE_TRUNC('week', CURRENT_DATE)) as resolved_week,
+      COUNT(*) FILTER (WHERE c.status = 'resolved' AND c.last_message_at >= DATE_TRUNC('month', CURRENT_DATE)) as resolved_month
+    FROM departments d
+    LEFT JOIN conversations c ON c.department_id = d.id
+    WHERE d.company_id = $1
+    GROUP BY d.id, d.name
+    ORDER BY active DESC
+  `, [companyIdNum]);
+
+  const byAgent = await db.query(`
+    SELECT 
+      u.id,
+      u.name,
+      COUNT(*) FILTER (WHERE c.status = 'in_progress' AND c.assigned_to = u.id) as in_progress,
+      COUNT(*) FILTER (WHERE c.status = 'resolved' AND DATE(c.last_message_at) = CURRENT_DATE AND c.assigned_to = u.id) as resolved_today
+    FROM users u
+    LEFT JOIN conversations c ON c.assigned_to = u.id
+    WHERE u.company_id = $1 AND u.role != 'admin'
+    GROUP BY u.id, u.name
+    ORDER BY resolved_today DESC
+  `, [companyIdNum]);
+
+  const funnelStats = await db.query(`
+    SELECT 
+      funnel_stage,
+      COUNT(*) as count
+    FROM conversations
+    WHERE company_id = $1 AND department_id = (
+      SELECT id FROM departments WHERE company_id = $1 AND name = 'Comercial' LIMIT 1
+    )
+    GROUP BY funnel_stage
+  `, [companyIdNum]);
+
+  return reply.send({
+    ok: true,
+    data: {
+      period: {
+        today: {
+          active: parseInt(today.rows[0]?.active || 0),
+          resolved: parseInt(today.rows[0]?.resolved || 0)
+        },
+        week: {
+          active: parseInt(thisWeek.rows[0]?.active || 0),
+          resolved: parseInt(thisWeek.rows[0]?.resolved || 0)
+        },
+        month: {
+          active: parseInt(thisMonth.rows[0]?.active || 0),
+          resolved: parseInt(thisMonth.rows[0]?.resolved || 0)
+        }
+      },
+      byDepartment: byDepartment.rows,
+      byAgent: byAgent.rows,
+      funnel: funnelStats.rows
+    }
+  });
+}
+
 module.exports = {
   getStats,
-  getRecentActivity
+  getRecentActivity,
+  getDashboardStats
 };

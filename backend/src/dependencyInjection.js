@@ -35,7 +35,8 @@ function createContainer(config = {}) {
       contactRepository: repositories.contact,
       conversationRepository: repositories.conversation,
       messageRepository: repositories.message,
-      departmentRepository: repositories.department
+      departmentRepository: repositories.department,
+      evolutionProvider: providers.evolution
     })
   };
 

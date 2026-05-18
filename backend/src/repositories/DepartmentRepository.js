@@ -31,30 +31,28 @@ class DepartmentRepository extends SupabaseBaseRepository {
   async findById(id) {
     const { data, error } = await this.client
       .from('departments')
-      .select(`
-        *,
-        conversations(count),
-        users(count)
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
     if (error && error.code !== 'PGRST116') {
       throw error;
     }
+    return { rows: data ? [data] : [], rowCount: data ? 1 : 0 };
+  }
 
-    if (!data) {
-      return { rows: [], rowCount: 0 };
+  async findByName(name) {
+    const { data, error } = await this.client
+      .from('departments')
+      .select('*')
+      .ilike('name', name)
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
     }
-
-    return {
-      rows: [{
-        ...data,
-        conversation_count: data.conversations?.[0]?.count || 0,
-        user_count: data.users?.[0]?.count || 0
-      }],
-      rowCount: 1
-    };
+    return { rows: data ? [data] : [], rowCount: data ? 1 : 0 };
   }
 }
 

@@ -1,5 +1,5 @@
 const { sendMessageToEvolution } = require('../lib/evolution');
-const { saveOutgoingMessage } = require('../lib/messages');
+const { sendMessageByPhone } = require('../lib/messages');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -8,21 +8,29 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { number, message, company_id } = req.body || {};
-    if (!number || !message) {
-      res.status(400).json({ ok: false, error: 'number e message sao obrigatorios' });
+    const { phone, message, company_id } = req.body || {};
+    
+    if (!phone || !message) {
+      res.status(400).json({ ok: false, error: 'phone e message são obrigatórios' });
       return;
     }
 
-    const provider = await sendMessageToEvolution({ number, message });
-    const saved = await saveOutgoingMessage({
+    const evolutionResult = await sendMessageToEvolution({ number: phone, message });
+    
+    const saved = await sendMessageByPhone({
       companyId: Number(company_id || 1),
-      phone: number,
-      content: message
+      phone,
+      content: message,
+      senderId: null
     });
 
-    res.status(200).json({ ok: true, provider, message: saved });
+    res.status(200).json({ 
+      ok: true, 
+      evolution: evolutionResult,
+      message: saved
+    });
   } catch (error) {
-    res.status(500).json({ ok: false, error: 'Erro ao enviar mensagem' });
+    console.error('Send error:', error);
+    res.status(500).json({ ok: false, error: error.message });
   }
 };

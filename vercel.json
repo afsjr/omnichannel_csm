@@ -1,7 +1,15 @@
 {
   "functions": {
     "api/*.js": {
-      "maxDuration": 10
+      "maxDuration": 30
     }
+  },
+  "env": {
+    "SUPABASE_URL": "@supabase-url",
+    "SUPABASE_SERVICE_KEY": "@supabase-service-key",
+    "EVOLUTION_API_URL": "@evolution-api-url",
+    "EVOLUTION_API_KEY": "@evolution-api-key",
+    "EVOLUTION_INSTANCE": "@evolution-instance",
+    "INTERNAL_API_KEY": "@internal-api-key"
   }
 }
