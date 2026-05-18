@@ -1,14 +1,13 @@
 /**
  * API de Usuários
  * Endpoints:
- * - GET /api/users - Lista usuários (admin/leader)
+ * - GET /api/users - Lista usuários
  * - PUT /api/users/:id - Atualiza usuário
  * - PUT /api/users/:id/activate - Ativa/desativa usuário
  */
 
+const { createClient } = require('@supabase/supabase-js');
 const { listUsers, setUserActive } = require('../lib/auth');
-const { getSupabase } = require('../lib/db');
-const { ROLES, checkPermission } = require('../lib/permissions');
 
 /**
  * Lista usuários da empresa
@@ -17,14 +16,20 @@ async function handleListUsers(req, res) {
   const companyId = Number(req.query.company_id || 1);
   
   try {
-    const supabase = getSupabase();
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({ ok: false, error: 'Banco não configurado' });
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
     
     const { data: users, error } = await supabase
       .from('users')
       .select(`
         id, name, email, role, company_id, department_id, 
-        is_active, is_online, team_leader_id, created_at,
-        departments(name)
+        is_active, is_online, team_leader_id, created_at
       `)
       .eq('company_id', companyId)
       .order('created_at', { ascending: false });
@@ -43,7 +48,7 @@ async function handleListUsers(req, res) {
 }
 
 /**
- * Atualiza usuário (nome, role, department)
+ * Atualiza usuário
  */
 async function handleUpdateUser(req, res) {
   const match = req.url.match(/\/users\/(\d+)/);
@@ -61,7 +66,9 @@ async function handleUpdateUser(req, res) {
   updateData.updated_at = new Date().toISOString();
 
   try {
-    const supabase = getSupabase();
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+    const supabase = createClient(supabaseUrl, supabaseKey);
     
     const { data: user, error } = await supabase
       .from('users')
@@ -80,7 +87,7 @@ async function handleUpdateUser(req, res) {
 }
 
 /**
- * Ativa ou desativa usuário
+ * Ativa/desativa usuário
  */
 async function handleActivateUser(req, res) {
   const match = req.url.match(/\/users\/(\d+)\/activate/);
@@ -120,7 +127,6 @@ module.exports = async (req, res) => {
   const { url } = req;
 
   try {
-    // GET /api/users ou /api/users?company_id=1
     if (url === '/users' || url.startsWith('/users?')) {
       if (req.method !== 'GET') {
         return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
@@ -128,12 +134,10 @@ module.exports = async (req, res) => {
       return handleListUsers(req, res);
     }
 
-    // PUT /api/users/:id/activate
     if (url.match(/\/users\/\d+\/activate/) && req.method === 'PUT') {
       return handleActivateUser(req, res);
     }
 
-    // PUT /api/users/:id
     if (url.match(/\/users\/\d+/) && (req.method === 'PUT' || req.method === 'PATCH')) {
       return handleUpdateUser(req, res);
     }

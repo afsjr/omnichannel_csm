@@ -2,10 +2,10 @@
  * API de Registro
  * Endpoint: POST /api/register
  * 
- * Cria usuário com confirmação por email via Supabase Auth
+ * Cria usuário com possibilidade de confirmação por email
  */
 
-const { createUserWithConfirmation, listUsers, setUserActive } = require('../lib/auth');
+const { createUserWithConfirmation } = require('../lib/auth');
 const { getSupabase } = require('../lib/db');
 
 module.exports = async (req, res) => {
@@ -22,13 +22,12 @@ module.exports = async (req, res) => {
     });
   }
 
-  // Validação básica de email
+  // Validação de email
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return res.status(400).json({ ok: false, error: 'Email inválido' });
   }
 
-  // Validação de senha (mínimo 6 caracteres)
   if (password.length < 6) {
     return res.status(400).json({ 
       ok: false, 
@@ -37,52 +36,53 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // 1. Primeiro cria usuário no Supabase Auth (envia email de confirmação)
+    // 1. Tenta criar no Supabase Auth (para enviar email de confirmação)
     const authResult = await createUserWithConfirmation(email, password, {
       metadata: { name }
     });
 
-    if (!authResult.ok) {
-      return res.status(400).json({ 
-        ok: false, 
-        error: authResult.error 
-      });
-    }
-
-    // 2. Depois cria registro na tabela users com referência
+    // Não блокируем se Auth falhar - continuamos com criação direta
+    
+    // 2. Cria usuário na tabela users
     const supabase = getSupabase();
-    
-    // Busca empresa do usuário (pode ser recebida ou usa a padrão)
+    const bcrypt = require('bcrypt');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const targetCompanyId = company_id || 1;
-    
+
     const { data: user, error } = await supabase
       .from('users')
       .insert({
         company_id: targetCompanyId,
         name,
         email,
+        password: hashedPassword,
         role: role || 'agent',
-        is_active: true  // Usuário ativo, mas precisa confirmar email
+        is_active: true
       })
       .select('id, name, email, role')
       .single();
 
     if (error) {
-      // Se falhar na tabela users, ainda assim o usuário foi criado no Auth
-      // Pode acontecer se já existir registro órfão
-      console.error('User table error:', error);
-      
-      return res.status(201).json({ 
-        ok: true, 
-        message: 'Usuário criado! Verifique seu email para confirmar o cadastro.',
-        email_confirmed: false
-      });
+      // Verifica se é duplicado
+      if (error.code === '23505' || error.message?.includes('duplicate')) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: 'Email já está cadastrado' 
+        });
+      }
+      throw error;
     }
+
+    // Define mensagem baseada no resultado do Auth
+    const message = authResult.ok 
+      ? 'Usuário criado! Verifique seu email para confirmar o cadastro.' 
+      : 'Usuário criado com sucesso!';
 
     return res.status(201).json({
       ok: true,
-      message: 'Usuário criado! Verifique seu email para confirmar o cadastro.',
-      email_confirmed: false,
+      message,
+      email_confirmed: !!authResult.ok,
       user: {
         id: user.id,
         name: user.name,
@@ -92,6 +92,6 @@ module.exports = async (req, res) => {
     });
   } catch (error) {
     console.error('Register error:', error);
-    return res.status(500).json({ ok: false, error: 'Erro ao criar usuário' });
+    return res.status(500).json({ ok: false, error: error.message });
   }
 };
