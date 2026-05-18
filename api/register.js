@@ -92,6 +92,10 @@ module.exports = async (req, res) => {
     });
   } catch (error) {
     console.error('Register error:', error);
-    return res.status(500).json({ ok: false, error: error.message });
+    return res.status(500).json({ 
+      ok: false, 
+      error: error.message,
+      details: error.stack
+    });
   }
 };
