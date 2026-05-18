@@ -1,8 +1,8 @@
 /**
- * API de Registro - Debug
+ * API de Registro - Sem bcrypt
  */
 
-const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 module.exports = async (req, res) => {
   console.log('Register: Starting...');
@@ -12,8 +12,6 @@ module.exports = async (req, res) => {
   }
 
   const { name, email, password } = req.body || {};
-
-  console.log('Register: Received data', { name, email, password: password ? 'SET' : 'MISSING' });
 
   if (!name || !email || !password) {
     return res.status(400).json({ 
@@ -27,19 +25,15 @@ module.exports = async (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
     
-    console.log('Register: Supabase config', { 
-      url: supabaseUrl ? 'OK' : 'MISSING', 
-      key: supabaseKey ? 'OK' : 'MISSING' 
-    });
-    
     if (!supabaseUrl || !supabaseKey) {
       return res.status(500).json({ ok: false, error: 'Banco não configurado' });
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    const hashedPassword = await bcrypt.hash(password, 10);
-    console.log('Register: Password hashed');
+    // Use crypto instead of bcrypt
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    console.log('Register: Password hashed with SHA256');
 
     const insertResult = await supabase
       .from('users')
