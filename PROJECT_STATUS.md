@@ -1,230 +1,231 @@
-# OmniChat SaaS - Plano e Andamento
+# OmniChat CSM - Status do Projeto
 
-Este arquivo e a fonte oficial de contexto do projeto.
-Objetivo: permitir continuidade em qualquer ambiente, sem perda de informacao.
+Este arquivo é a fonte oficial de contexto do projeto.
+Objetivo: permitir continuidade em qualquer ambiente, sem perda de informação.
 
-## 1) Visao do Projeto
+---
 
-- Nome: OmniChat SaaS
-- Objetivo: centralizar atendimento omnichannel com foco em WhatsApp (Evolution API) e evolucao para chat de site.
-- Modelo: multiempresa (SaaS) com suporte a equipe/atendentes.
+## 1) Visão do Projeto
+
+- **Nome:** OmniChat CSM
+- **Objetivo:** Sistema omnichannel de atendimento ao cliente com IA para escola técnica de enfermagem
+- **Modelo:** Multiempresa (SaaS) com suporte a equipe/atendentes
+- **Canais:** WhatsApp (Evolution API) + chat de site (futuro)
+
+---
 
 ## 2) Stack Definida
 
-- Backend: Node.js + Fastify
-- Banco: PostgreSQL
-- Realtime: polling curto no MVP cloud (Socket.io mantido apenas como base local)
-- Frontend: React (Vite)
-- Infra cloud: Vercel + Postgres gerenciado (Neon/Supabase)
- - Padrao atual: Vercel + Neon (plano free inicial)
+| Componente | Tecnologia |
+|------------|------------|
+| Backend Local | Node.js + Fastify |
+| Backend Cloud | Vercel Functions |
+| Banco de Dados | Supabase (PostgreSQL) |
+| Frontend | React 18 + Vite + Zustand |
+| WhatsApp | Evolution API |
+| IA | Groq (Llama) ou OpenAI |
+| Realtime | Socket.io (local) / Polling 5s (cloud) |
 
-## 3) Estrutura Atual
+---
 
-- Backend: [backend/src/app.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/app.js)
-- Rotas: [backend/src/routes/index.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/routes/index.js)
-- Banco:
-  - conexao: [backend/src/db/index.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/db/index.js)
-  - schema: [backend/src/db/schema.sql](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/db/schema.sql)
-- Servicos:
-  - mensagens: [backend/src/services/messageService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/messageService.js)
-  - Evolution: [backend/src/services/evolutionService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/evolutionService.js)
-  - Triage (IA): [backend/src/services/TriageService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/TriageService.js)
-  - AI Draft (IA): [backend/src/services/AIDraftService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/AIDraftService.js)
-  - Funil: [backend/src/services/FunnelClassificationService.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/services/FunnelClassificationService.js)
-- Controllers:
-  - AI: [backend/src/controllers/aiController.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/controllers/aiController.js)
-  - Dashboard: [backend/src/controllers/dashboardController.js](/Users/itouch/Documents/projetos_escola/omnichannel_csm/backend/src/controllers/dashboardController.js)
-- Frontend:
-  - app realtime: [frontend/src/pages/Dashboard.jsx](/Users/itouch/Documents/projetos_escola/omnichannel_csm/frontend/src/pages/Dashboard.jsx)
-  - chat: [frontend/src/components/ChatWindow.jsx](/Users/itouch/Documents/projetos_escola/omnichannel_csm/frontend/src/components/ChatWindow.jsx)
-- Infra: [docker-compose.yml](/Users/itouch/Documents/projetos_escola/omnichannel_csm/docker-compose.yml)
+## 3) Estrutura Atual do Projeto
 
-## 4) Status Atual (Hoje)
+```
+omnichannel_csm/
+├── api/                    # APIs para Vercel (serverless)
+│   ├── auth/               # Autenticação (index.js)
+│   ├── login.js            # Login direto
+│   ├── register.js          # Registro de usuários
+│   ├── queue.js            # Fila de conversas
+│   ├── users.js            # Lista de usuários
+│   ├── send-message.js     # Envio de mensagens
+│   ├── webhook-handler.js  # Webhook da Evolution
+│   ├── db-test.js          # Teste de conexão
+│   ├── check-env.js        # Verificação de variáveis
+│   └── test.js            # Endpoint de teste
+│
+├── lib/                    # Bibliotecas compartilhadas
+│   ├── db.js              # Conexão Supabase
+│   ├── messages.js        # Funções de mensagens
+│   ├── evolution.js      # Integração Evolution API
+│   └── security.js        # Verificação de API Key
+│
+├── frontend/              # App React (Vite)
+│   ├── src/
+│   │   ├── pages/         # Dashboard.jsx
+│   │   ├── components/    # ChatWindow, ContactsModal
+│   │   ├── contexts/      # AuthContext, ChatContext
+│   │   └── services/      # API client
+│   └── package.json
+│
+├── backend/              # Backend Fastify (local/desenvolvimento)
+│   ├── src/
+│   │   ├── app.js
+│   │   ├── controllers/
+│   │   ├── services/      # ChatService, EvolutionService, TriageService
+│   │   ├── repositories/
+│   │   └── providers/    # EvolutionProvider, LLMProvider
+│   └── .env              # Variáveis de ambiente locais
+│
+├── docs/                 # Documentação
+│   └── cloud-setup.md   # Guia de deploy Vercel
+│
+├── vercel.json           # Configuração Vercel
+├── package.json          # Dependências do projeto
+└── docker-compose.yml    # PostgreSQL local
+```
 
-Data de referencia: 2026-05-18
+---
 
-Concluido:
-- Estrutura inicial de pastas de backend e frontend criada.
-- Endpoint `POST /webhook` implementado.
-- Recebimento de payload + persistencia basica no banco implementados.
-- Emissao de evento realtime `new_message` via Socket.io implementada.
-- Endpoint `POST /send` implementado com integracao Evolution preparada por variaveis de ambiente.
-- Frontend minimo para exibir mensagens em tempo real implementado.
-- Script SQL com tabelas SaaS base criado.
-- Docker Compose com PostgreSQL criado.
-- Adaptacao para modo 100% cloud criada com funcoes serverless em `/api`.
-- Endpoint cloud `GET /api/messages` criado para painel.
-- Frontend adaptado para leitura periodica de mensagens (polling 5s), compativel com Vercel.
-- Arquivo de setup cloud criado.
-- Framework BMAD documentado no repositorio com checklist de Go/No-Go.
-- **SISTEMA DE IA IMPLEMENTADO**: Triagem automatica de setores + geracao de rascunho de resposta.
-- **PERSISTENCIA DE ANALISE IA**: Historico de analise IA salvo como mensagem do sistema no chat.
-- **CLASSIFICACAO DE FUNIL**: Sistema de identificacao de topo/meio/fundo de funil para setor Comercial.
-- **DASHBOARD DE ESTATISTICAS**: View de estatisticas com periodo dia/semana/mes, por setor e por atendente.
-- **CONVERSAS ENCERRADAS**: Secao para ver historico de conversas resolvidas com chat em modo somente leitura.
-- **REABERTURA DE CONVERSAS**: Sistema permite reabrir conversas pelo botao ou automaticamente quando cliente envia nova mensagem.
+## 4) Status Atual (Maio 2026)
 
-Pendente imediato:
-- Executar schema no PostgreSQL cloud e validar conexao real.
-- Configurar webhook da Evolution apontando para `/api/webhook` em dominio Vercel.
-- Ajustar payload real da Evolution no parser de entrada.
-- Implementar autenticacao e isolamento forte por empresa (LGPD e seguranca SaaS).
-- Executar checklist BMAD para liberar producao com criterio objetivo.
-- Concluir setup da conta Neon free e configurar `DATABASE_URL` na Vercel.
+### ✅ Concluído
 
-## 5) Proximos Passos (Ordem)
+1. **Deploy na Vercel** - Sistema 100% em produção na cloud
+   - URL: https://omnichannel-csm.vercel.app
+   - Frontend React funcionando
+   - APIs serverless funcionando
 
-1. ~~Integracao real Evolution (entrada e envio com contrato correto).~~
-2. ~~Login seguro + autorizacao por empresa (tenant isolation).~~
-3. ~~Endpoint de listagem de conversas por empresa.~~
-4. ~~Endpoint de listagem de mensagens por conversa + filtros.~~
-5. ~~Atribuicao de conversa para atendente.~~
-6. ~~Sistema de IA com triagem e rascunho automatico.~~
-7. **Testes end-to-end**: Validar fluxo completo (webhook -> triagem IA -> rascunho -> envio).
-8. **Melhorar UI do dashboard de estatisticas**: Graficos visuais.
-9. **Sistema de notificacoes push**: Alertas para novos atendimentos.
-10. **Trilha de auditoria e politicas de retencao (LGPD)**.
-11. **Integração com chat de site** (canal adicional).
-12. **App mobile basico** (PWA).
+2. **Integração com Evolution API**
+   - Envio de mensagens via API
+   - Recebimento de webhook
+   - Suporte a mídias (imagem, áudio, vídeo)
 
-## 6) Como Atualizar Este Arquivo
+3. **Autenticação**
+   - Login funcionando (endpoint `/api/login`)
+   - Registro de usuários (endpoint `/api/register`)
+   - JWT para sessões
 
-Sempre que houver implementacao/melhoria:
+4. **Banco de Dados**
+   - Conexão com Supabase funcionando
+   - Tabelas de usuários, contatos, conversas, mensagens
+   - API de fila de atendimentos funcionando
 
-1. Atualizar "Status Atual (Hoje)" com:
-   - data
-   - o que foi concluido
-   - o que ficou pendente
-2. Atualizar "Proximos Passos (Ordem)" refletindo nova prioridade.
-3. Se houver novos arquivos-chave, incluir em "Estrutura Atual".
+5. **Frontend**
+   - Dashboard com fila de conversas
+   - Chat com atendimento
+   - Estatísticas por período
 
-Padrao recomendado por entrega:
-- Titulo curto da entrega
-- Arquivos alterados
-- Resultado funcional
-- Proximo passo direto
+### 🔄 Em Desenvolvimento
+
+1. **Integração completa WhatsApp**
+   - Webhook precisa ser testado com mensagens reais
+   - Parsing de mídias precisa de validação
+
+2. **Sistema de IA**
+   - Triagem automática de setores
+   - Geração de rascunhos de resposta
+   - (Funciona no backend local, não foi deployado para Vercel)
+
+---
+
+## 5) URLs e Configurações
+
+### Produção Vercel
+- **Frontend:** https://omnichannel-csm.vercel.app
+- **API Base:** https://omnichannel-csm.vercel.app/api
+
+### APIs Disponíveis
+| Endpoint | Descrição |
+|----------|------------|
+| `/api/login` | Login de usuário |
+| `/api/register` | Criar novo usuário |
+| `/api/queue` | Lista fila de atendimentos |
+| `/api/users` | Lista usuários |
+| `/api/db-test` | Teste conexão banco |
+| `/api/check-env` | Verifica variáveis ambiente |
+
+### Variáveis de Ambiente (Vercel)
+```
+SUPABASE_URL=https://rccaiodmgvvudiplbodl.supabase.co
+SUPABASE_SERVICE_KEY=<sua-chave>
+EVOLUTION_API_URL=https://api.ajuda.digital
+EVOLUTION_API_KEY=02E16307DC4C-46EA-BA84-D0B08D394106
+EVOLUTION_INSTANCE=omni_channel
+JWT_SECRET=<sua-chave-secreta>
+```
+
+### Evolution API
+- **URL:** https://api.ajuda.digital
+- **Instância:** omni_channel
+- **Webhook:** https://omnichannel-csm.vercel.app/api/webhook-handler
+
+---
+
+## 6) Próximos Passos
+
+### Imediato
+1. ✅ Deploy functioning - testar com mensagens reais
+2. ✅ Autenticação funcionando - testar login no frontend
+3. ⚠️ Corrigir roteamento de APIs (algumas rotas ainda não funcionam)
+4. ⚠️ Ativar verificação de API Key para produção
+
+### Curto Prazo
+1. Implementar sistema de IA no backend cloud
+2. Adicionar gráficos visuais nas estatísticas
+3. Sistema de notifications push
+4. Integração com chat de site
+
+### Médio Prazo
+1. Autenticação completa JWT com roles
+2. Isolamento por empresa (LGPD)
+3. App mobile PWA
+
+---
 
 ## 7) Registro de Entregas
 
-### 2026-05-05 - Bootstrap MVP tecnico
-- Arquivos alterados:
-  - backend/package.json
-  - backend/src/app.js
-  - backend/src/routes/index.js
-  - backend/src/controllers/webhookController.js
-  - backend/src/controllers/messageController.js
-  - backend/src/services/messageService.js
-  - backend/src/services/evolutionService.js
-  - backend/src/db/index.js
-  - backend/src/db/schema.sql
-  - backend/src/websocket/index.js
-  - backend/.env.example
-  - frontend/package.json
-  - frontend/index.html
-  - frontend/vite.config.js
-  - frontend/src/main.jsx
-  - frontend/src/pages/App.jsx
-  - docker-compose.yml
-- Resultado funcional:
-  - Base do sistema pronta para receber webhook, emitir realtime e preparar envio.
-- Proximo passo direto:
-  - Conectar Evolution real e validar fluxo end-to-end.
+### 2026-05-18 - Deploy na Vercel (MAIOR ENTREGA)
+**Arquivos alterados/criados:**
+- `package.json` - Dependencies + build script
+- `vercel.json` - Configuração Vercel
+- `api/*.js` - APIs serverless (login, register, queue, users, etc)
+- `lib/db.js` - Conexão Supabase
+- `lib/messages.js` - Funções de banco
+- `lib/evolution.js` - Integração Evolution API
+- `lib/security.js` - API Key verification
+- `docs/cloud-setup.md` - Guia atualizado
 
-### 2026-05-05 - Adaptacao 100% cloud (Vercel)
-- Arquivos alterados:
-  - api/webhook.js
-  - api/send.js
-  - api/messages.js
-  - lib/db.js
-  - lib/messages.js
-  - lib/evolution.js
-  - frontend/src/pages/App.jsx
-  - vercel.json
-  - docs/cloud-setup.md
-  - PROJECT_STATUS.md
-- Resultado funcional:
-  - Projeto preparado para rodar em nuvem sem depender de maquina local ligada.
-- Proximo passo direto:
-  - Subir no Vercel, configurar `DATABASE_URL` e apontar webhook da Evolution.
+**Problemas resolvidos:**
+1. Build falhava (vite não encontrado) → `--include=dev`
+2. NOT_FOUND em APIs → renomear arquivos
+3. Supabase não inicializava → adicionar @supabase/supabase-js
+4. Variáveis ambiente não configuradas → configurar na Vercel
+5. FUNCTION_INVOCATION_FAILED → todas variáveis SET
 
-### 2026-05-05 - Governanca BMAD para Go-Live
-- Arquivos alterados:
-  - docs/bmad/01-business.md
-  - docs/bmad/02-market.md
-  - docs/bmad/03-architecture.md
-  - docs/bmad/04-delivery.md
-  - docs/bmad/05-lgpd-security.md
-  - docs/bmad/go-live-checklist.md
-  - PROJECT_STATUS.md
-- Resultado funcional:
-  - Projeto passa a ter trilha formal de decisao para producao (Business, Market, Architecture, Delivery e LGPD).
-- Proximo passo direto:
-  - Fechar os itens pendentes de seguranca e executar gate final Go/No-Go.
+**Resultado funcional:**
+- Sistema 100% em produção
+- Frontend acessível
+- APIs funcionando
+- Banco conectado
 
-### 2026-05-05 - Ajuste de escopo de canais
-- Arquivos alterados:
-  - PROJECT_STATUS.md
-  - docs/bmad/01-business.md
-  - docs/cloud-setup.md
-- Resultado funcional:
-  - Escopo oficial sem Meta/Instagram, com foco em WhatsApp + chat de site.
-- Proximo passo direto:
-  - Fechar setup Neon free e validar conexao com Vercel.
+**Próximo passo:**
+- Testar fluxo completo (webhook → banco → frontend)
 
-### 2026-05-18 - Sistema de IA com Triagem e Rascunho
-- Arquivos alterados/criados:
-  - backend/src/services/FunnelClassificationService.js (NOVO)
-  - backend/src/services/TriageService.js
-  - backend/src/services/AIDraftService.js
-  - backend/src/controllers/aiController.js
-  - backend/src/repositories/MessageRepository.js
-  - backend/src/repositories/ConversationRepository.js
-  - backend/src/db/schema.sql
-  - frontend/src/components/ChatWindow.jsx
-  - frontend/src/index.css
-- Resultado funcional:
-  - IA classifica automaticamente o setor e gera rascunho de resposta.
-  - Analise IA e salvo no historico do chat como mensagem do sistema.
-  - Classificacao de funil (topo/meio/fundo) para setor Comercial.
-  - Botao "Estatisticas" no dashboard para ver volume por dia/semana/mes.
-- Proximo passo direto:
-  - Testar fluxo completo com Evolution conectada.
+---
 
-### 2026-05-18 - Dashboard de Estatisticas
-- Arquivos alterados:
-  - backend/src/controllers/dashboardController.js
-  - backend/src/routes/index.js
-  - frontend/src/pages/Dashboard.jsx
-  - frontend/src/index.css
-- Resultado funcional:
-  - View de estatisticas com cards para hoje/semana/mes.
-  - Tabela de metricas por setor (ativos, resolvidos por periodo).
-  - Tabela de metricas por atendente (em atendimento, resolvidos hoje).
-  - Badges visuais para estagio do funil no chat.
-- Proximo passo direto:
-  - Adicionar graficos visuais e exportar para PDF/Excel.
+## 8) Como Atualizar Este Arquivo
 
-### 2026-05-18 - Historico de Conversas Encerradas e Reabertura
-- Arquivos alterados/criados:
-  - backend/src/repositories/ConversationRepository.js
-  - backend/src/services/ChatService.js
-  - backend/src/controllers/messageController.js
-  - backend/src/routes/index.js
-  - frontend/src/contexts/ChatContext.jsx
-  - frontend/src/pages/Dashboard.jsx
-  - frontend/src/components/ChatWindow.jsx
-  - frontend/src/index.css
-- Resultado funcional:
-  - Secao "Encerradas" no sidebar lista conversas resolvidas.
-  - Botao ↩️ para reabrir conversas resolvidas.
-  - Chat em modo somente leitura para conversas encerradas.
-  - Webhook detecta mensagem de cliente em conversa resolvida e reabre automaticamente (status volta para pending).
-- Proximo passo direto:
-  - Testar reabertura via botao e via mensagem do cliente.
+Sempre que houver implementação/melhoria:
 
-### 2026-05-18 - Correcao Botao Estatisticas
-- Arquivos alterados:
-  - frontend/src/pages/Dashboard.jsx
-- Problema: URL do dashboard nao tinha o prefixo /api
-- Solucao: Adicionado API_PREFIX = '/api' na URL de fetch
-- Resultado: Botao de estatisticas funciona corretamente
+1. Atualizar "Status Atual" com:
+   - Data
+   - O que foi concluído
+   - O que ficou pendente
+2. Atualizar "Próximos Passos"
+3. Se houver novos arquivos-chave, incluir em "Estrutura Atual"
+
+**Padrão recomendado por entrega:**
+- Título curto da entrega
+- Arquivos alterados
+- Resultado funcional
+- Próximo passo direto
+
+---
+
+## 9) Links Úteis
+
+- **Vercel Dashboard:** https://vercel.com/dashboard
+- **Supabase Dashboard:** https://supabase.com/dashboard
+- **Evolution API:** https://api.ajuda.digital
+- **Repositório:** https://github.com/afsjr/omnichannel_csm

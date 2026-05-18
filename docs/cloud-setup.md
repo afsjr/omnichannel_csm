@@ -1,48 +1,120 @@
-# Setup 100% Cloud (Vercel)
+# Setup 100% Cloud (Vercel) - Guia Completo
 
-## Objetivo
-Rodar o projeto com computador desligado, com backend, frontend e webhook em nuvem.
+## Visão Geral
+
+O projeto OmniChat CSM está configurado para funcionar 100% na cloud usando Vercel como plataforma de deploy. Isso significa que o sistema pode operar sem necessidade de servidor local ligado.
 
 ## Arquitetura
-- Frontend: Vercel
-- API: Vercel Functions (`/api`)
-- Banco: Supabase (PostgreSQL gerenciado)
-- WhatsApp: Evolution API enviando webhook para URL pública da Vercel
-- Realtime: Polling (5s) - Socket.io não funciona bem em serverless
 
-## Variáveis de ambiente (Vercel)
+```
+┌─────────────────┐
+│  Evolution API  │ ← Webhook de mensagens
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     VERCEL                                  │
+│  ┌──────────────────┐    ┌────────────────────────────┐  │
+│  │   Frontend (Vite) │    │   APIs (Serverless)         │  │
+│  │   omnichannel-    │    │   - /api/login              │  │
+│  │   csm.vercel.app │    │   - /api/queue              │  │
+│  └──────────────────┘    │   - /api/webhook-handler    │  │
+│                           └────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│    SUPABASE     │ ← Banco de dados PostgreSQL
+│ (PostgreSQL)    │
+└─────────────────┘
+```
 
-Configure as seguintes variáveis no dashboard da Vercel:
+## Estrutura de Arquivos para Deploy
 
-| Variável | Valor |
-|----------|-------|
-| `SUPABASE_URL` | https://rccaiodmgvvudiplbodl.supabase.co |
-| `SUPABASE_SERVICE_KEY` | Sua chave do Supabase |
-| `EVOLUTION_API_URL` | https://api.ajuda.digital |
-| `EVOLUTION_API_KEY` | 02E16307DC4C-46EA-BA84-D0B08D394106 |
-| `EVOLUTION_INSTANCE` | omni_channel |
-| `INTERNAL_API_KEY` | Chave secreta para APIs internas |
+```
+omnichannel_csm/
+├── api/                    ← Funções serverless da Vercel
+│   ├── login.js           ← Login
+│   ├── register.js        ← Registro
+│   ├── queue.js           ← Fila de atendimentos
+│   ├── users.js           ← Usuários
+│   ├── webhook-handler.js ← Webhook Evolution
+│   └── ...
+│
+├── lib/                    ← Bibliotecas compartilhadas
+│   ├── db.js              ← Conexão Supabase
+│   ├── messages.js        ← Funções de banco
+│   ├── evolution.js       ← Integração Evolution
+│   └── security.js        ← API Key validation
+│
+├── frontend/              ← App React
+│   └── dist/             ← Build output (gerado automaticamente)
+│
+├── vercel.json           ← Configuração do Vercel
+└── package.json          ← Dependencies
+```
 
-## Endpoints
+## Configuração na Vercel
 
-- `POST /api/webhook` - Recebe mensagens da Evolution API
-- `POST /api/send` - Envia mensagem para WhatsApp
-- `GET /api/messages` - Lista conversas (queue, my-conversations, conversation/:id)
-- `POST /api/messages/assign` - Atribui conversa a atendente
-- `POST /api/messages/resolve` - Encerrar conversa
+### 1. Conectar Repositório
+1. Acesse https://vercel.com
+2. Crie novo projeto conectando ao GitHub
+3. Selecione o repositório `omnichannel_csm`
 
-## Passos de Deploy
+### 2. Variáveis de Ambiente
 
-### 1. Configurar Supabase
-- O banco já está configurado com as tabelas necessárias
-- A URL já está no projeto
+Adicione estas variáveis em **Settings → Environment Variables**:
 
-### 2. Configurar Vercel
-1. Criar projeto na Vercel conectando ao GitHub
-2. Adicionar as variáveis de ambiente acima
-3. Fazer deploy do projeto
+| Variável | Valor | Sensitive |
+|----------|-------|-----------|
+| `SUPABASE_URL` | `https://rccaiodmgvvudiplbodl.supabase.co` | ✓ |
+| `SUPABASE_SERVICE_KEY` | Sua chave do Supabase | ✓ |
+| `EVOLUTION_API_URL` | `https://api.ajuda.digital` | ✓ |
+| `EVOLUTION_API_KEY` | `02E16307DC4C-46EA-BA84-D0B08D394106` | ✓ |
+| `EVOLUTION_INSTANCE` | `omni_channel` | ✓ |
+| `JWT_SECRET` | Sua chave secreta | ✓ |
+| `NODE_ENV` | `production` | - |
 
-### 3. Configurar Webhook na Evolution API
+### 3. Configurações de Build
+
+O `vercel.json` já está configurado com:
+- Build command: `npm run build`
+- Output: `frontend/dist`
+- Framework: Vite
+- Functions: Todas em `api/*.js` com timeout de 30s
+
+## APIs Disponíveis
+
+### Autenticação
+```
+POST /api/login
+POST /api/register
+```
+
+### Mensagens
+```
+GET /api/queue?company_id=1
+GET /api/users
+POST /api/assign
+POST /api/resolve
+```
+
+### Webhook
+```
+POST /api/webhook-handler
+```
+
+### Utilitários
+```
+GET /api/db-test     # Testa conexão banco
+GET /api/check-env   # Verifica variáveis ambiente
+GET /api/test        # Teste geral
+```
+
+## Configurar Webhook na Evolution API
+
+Execute este comando para configurar o webhook:
+
 ```bash
 curl -X POST "https://api.ajuda.digital/webhook/set/omni_channel" \
   -H "Content-Type: application/json" \
@@ -50,41 +122,95 @@ curl -X POST "https://api.ajuda.digital/webhook/set/omni_channel" \
   -d '{
     "webhook": {
       "enabled": true,
-      "url": "https://SEU_DOMINIO.vercel.app/api/webhook",
+      "url": "https://omnichannel-csm.vercel.app/api/webhook-handler",
       "webhookByEvents": false,
-      "events": ["MESSAGES_UPSERT", "SEND_MESSAGE", "CONNECTION_UPDATE"]
+      "events": ["MESSAGES_UPSERT", "SEND_MESSAGE"]
     }
   }'
 ```
 
-Substitua `SEU_DOMINIO.vercel.app` pelo seu domínio real.
+## Testes
 
-### 4. Testar
-- Acesse `https://SEU_DOMINIO.vercel.app` para o frontend
-- Teste o webhook: `https://SEU_DOMINIO.vercel.app/api/messages?company_id=1`
+### Testar API
+```bash
+# Verificar variáveis ambiente
+curl https://omnichannel-csm.vercel.app/api/check-env
+
+# Testar banco
+curl https://omnichannel-csm.vercel.app/api/db-test
+
+# Listar usuários
+curl https://omnichannel-csm.vercel.app/api/users
+
+# Login
+curl -X POST https://omnichannel-csm.vercel.app/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@csm.com", "password": "123456"}'
+```
+
+### Testar Frontend
+Acesse: https://omnichannel-csm.vercel.app
+
+## Problemas Comuns
+
+### 1. NOT_FOUND em APIs
+- Verificar se o arquivo está na pasta `api/`
+- Nomes de arquivos não podem ter hífen: usar `queue.js` não `queue-api.js`
+
+### 2. FUNCTION_INVOCATION_FAILED
+- Verificar se todas variáveis estão configuradas
+- Verificar se `@supabase/supabase-js` está nas dependências
+
+### 3. Build falha
+- Adicionar `--include=dev` no script de build
+- Verificar se vite está em devDependencies
+
+## Ambiente Local
+
+Para desenvolver localmente:
+
+```bash
+# Backend local
+cd backend
+npm install
+npm run dev
+
+# Frontend local (outro terminal)
+cd frontend
+npm install
+npm run dev
+```
 
 ## Segurança
 
-### API Key Interna
-Todas as APIs (exceto webhook) requerem a header `X-API-Key`:
+### API Key
+As APIs (exceto webhook) requerem header `X-API-Key`:
 ```bash
-curl -H "X-API-Key: SUA_CHAVE_SECRETA" \
-  "https://SEU_DOMINIO.vercel.app/api/messages/queue?company_id=1"
+curl -H "X-API-Key: sua-chave" https://...
 ```
 
-### Evitar Abusos
-- Rate limiting implementado no frontend via polling
-- API key interna protege endpoints sensíveis
-- Webhook validado pela Evolution API (apikey header)
+### Variáveis Sensíveis
+- Todas as variáveis com dados sensíveis devem ser marcadas como "Sensitive" na Vercel
+- Nunca commit arquivos `.env` com chaves reais
 
-## Realtime na Vercel
-Socket.io persistente não funciona bem em serverless. No MVP cloud:
-- Usar polling curto no frontend (5s)
-- O frontend já está configurado para polling
-- Para produção: considerar Supabase Realtime ou WebSocket dedicado
+## Monitoramento
 
-## Deploy do Frontend
-O frontend React está na pasta `/frontend`. Configure na Vercel:
-- Framework Preset: Vite
-- Build Command: `npm run build`
-- Output Directory: `dist`
+### Ver Logs
+Vercel → Deployments → Click no deploy → Runtime Logs
+
+### Verificar Status
+- Frontend: https://omnichannel-csm.vercel.app
+- API: https://omnichannel-csm.vercel.app/api/test
+
+---
+
+## Conclusão
+
+Este guia cobre a configuração completa para deploy na Vercel. O sistema está pronto para uso em produção com as seguintes funcionalidades:
+- ✅ Frontend React
+- ✅ APIs serverless
+- ✅ Banco Supabase
+- ✅ Integração Evolution API
+- ✅ Autenticação JWT
+
+Para dúvidas ou problemas, verificar os logs na Vercel ou consultar o PROJECT_STATUS.md.
