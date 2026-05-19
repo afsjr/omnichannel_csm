@@ -7,58 +7,10 @@
       "maxDuration": 30
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/auth/login",
-      "dest": "/api/login.js"
-    },
-    {
-      "src": "/api/auth/signup",
-      "dest": "/api/auth/signup.js"
-    },
-    {
-      "src": "/api/auth/reset-password",
-      "dest": "/api/auth/reset-password.js"
-    },
-    {
-      "src": "/api/auth/update-password",
-      "dest": "/api/auth/update-password.js"
-    },
-    {
-      "src": "/api/auth/manage-users",
-      "dest": "/api/auth/manage-users.js"
-    },
-    {
-      "src": "/api/login",
-      "dest": "/api/login.js"
-    },
-    {
-      "src": "/api/register",
-      "dest": "/api/register.js"
-    },
-    {
-      "src": "/api/queue",
-      "dest": "/api/queue.js"
-    },
-    {
-      "src": "/api/users",
-      "dest": "/api/users.js"
-    },
-    {
-      "src": "/api/webhook",
-      "dest": "/api/webhook-handler.js"
-    },
-    {
-      "src": "/api/health",
-      "dest": "/api/health.js"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1.js"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     }
   ]
 }
