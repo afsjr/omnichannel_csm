@@ -139,6 +139,7 @@ async function routes(fastify) {
   fastify.post('/auth/register', authController.register);
   fastify.get('/auth/me', { preHandler: [authController.authMiddleware] }, authController.me);
   fastify.post('/auth/logout', authController.logout);
+  fastify.post('/auth/refresh', authController.refreshToken);
 
   // Messages
   fastify.post('/messages/send', messageController.sendMessage);

@@ -29,11 +29,14 @@ Responsável por hash de senhas, geração/validação de tokens JWT e verifica�
 |----|-----------|-----------|-------------------|
 | RF-A01 | Hash de senha com bcrypt 10 rounds | Must | `bcrypt.hash(password, 10)` retorna hash válido |
 | RF-A02 | Comparação de senha com hash | Must | `bcrypt.compare()` retorna true/false corretamente |
-| RF-A03 | Geração de JWT com payload {id, email, company_id, role} | Must | Token gerado em formato header.body.signature |
-| RF-A04 | Validação de JWT | Must | Retorna payload ou null se inválido |
+| RF-A03 | Geração de JWT com payload {id, email, company_id, role, iat, exp} | Must | Token gerado em formato header.body.signature |
+| RF-A04 | Validação de JWT com expiração | Must | Retorna payload ou null se inválido/expirado |
 | RF-A05 | Verificação de permissão por role | Must | `checkPermission(user, 'resource:action')` retorna boolean |
 | RF-A06 | Filtragem de dados por visibilidade | Must | Agent só vê dados com assigned_to = user.id |
 | RF-A07 | Middleware de permissão em rotas | Must | Rota retorna 403 se sem permissão |
+| RF-A08 | Geração de refresh token | Must | `crypto.randomBytes(48)` gera token hexadecimal |
+| RF-A09 | POST /auth/refresh | Must | Recebe refresh_token, valida, revoga e emite novo par |
+| RF-A10 | Logout invalida refresh token | Must | `session.deleteByToken()` remove sessão do banco |
 
 ## Requisitos Não Funcionais
 
@@ -79,10 +82,11 @@ Then retorna apenas conversas onde assigned_to = user.id
 
 | Arquivo | Função / Classe | Cobertura |
 |---------|-----------------|-----------|
-| `backend/src/services/AuthService.js` | `hashPassword`, `comparePassword`, `generateToken`, `verifyToken` | 🟢 |
+| `backend/src/services/AuthService.js` | `hashPassword`, `comparePassword`, `generateToken`, `verifyToken`, `generateRefreshToken`, `getRefreshExpiration` | 🟢 |
 | `lib/permissions.js` | `checkPermission`, `filterByPermission`, `requirePermission` | 🟢 |
-| `backend/src/controllers/authController.js` | Controller HTTP | 🟢 |
-| `backend/src/db/schema.sql` | Tabela users com role | 🟢 |
+| `backend/src/controllers/authController.js` | login, register, me, logout, refreshToken, authMiddleware | 🟢 |
+| `backend/src/repositories/SessionRepository.js` | create, findByToken, deleteByUserId, deleteByToken, deleteExpired | 🟢 |
+| `backend/src/db/schema.sql` | Tabela users + sessions | 🟢 |
 
 ---
 
@@ -90,6 +94,4 @@ Then retorna apenas conversas onde assigned_to = user.id
 
 | Item | Confiança | Descrição |
 |------|-----------|------------|
-| 🔴 | Refresh tokens não implementados | Sessão expira sem refresh |
-| 🔴 | Logout não invalida tokens | Token permanece válido após logout |
 | 🔴 | Rate limiting por role | Não há limitação de requests |

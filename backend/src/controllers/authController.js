@@ -9,7 +9,7 @@ async function login(req, reply) {
     return reply.code(400).send({ ok: false, error: 'email e senha sao obrigatorios' });
   }
 
-  const { user } = req.server.container.repositories;
+  const { user, session } = req.server.container.repositories;
 
   const result = await user.findByEmail(email);
   const userData = result.rows[0];
@@ -25,20 +25,31 @@ async function login(req, reply) {
   await user.setOnlineStatus(userData.id, true);
 
   const token = authService.generateToken(userData);
+  const refreshToken = authService.generateRefreshToken();
+  const expiresAt = authService.getRefreshExpiration();
+
+  await session.create({
+    userId: userData.id,
+    refreshToken,
+    expiresAt
+  });
+
   const { password: _, ...safeUser } = userData;
 
   return reply.send({
     ok: true,
     data: {
       user: safeUser,
-      token
+      token,
+      refresh_token: refreshToken,
+      expires_at: expiresAt.toISOString()
     }
   });
 }
 
 async function register(req, reply) {
   const { name, email, password, companyId, departmentId, role } = req.body || {};
-  const { user } = req.server.container.repositories;
+  const { user, session } = req.server.container.repositories;
 
   if (!name || !email || !password) {
     return reply.code(400).send({ ok: false, error: 'name, email e password sao obrigatorios' });
@@ -62,12 +73,20 @@ async function register(req, reply) {
 
   const newUser = result.rows[0];
   const token = authService.generateToken(newUser);
+  const refreshToken = authService.generateRefreshToken();
+  const expiresAt = authService.getRefreshExpiration();
+
+  await session.create({
+    userId: newUser.id,
+    refreshToken,
+    expiresAt
+  });
 
   const { password: _, ...safeUser } = newUser;
 
   return reply.code(201).send({
     ok: true,
-    data: { user: safeUser, token }
+    data: { user: safeUser, token, refresh_token: refreshToken, expires_at: expiresAt.toISOString() }
   });
 }
 
@@ -96,8 +115,68 @@ async function me(req, reply) {
   return reply.send({ ok: true, data: { user: userData } });
 }
 
+async function refreshToken(req, reply) {
+  const { refresh_token } = req.body || {};
+
+  if (!refresh_token) {
+    return reply.code(400).send({ ok: false, error: 'refresh_token é obrigatório' });
+  }
+
+  const { session, user } = req.server.container.repositories;
+
+  const sessionResult = await session.findByToken(refresh_token);
+  const sessionData = sessionResult.rows[0];
+
+  if (!sessionData) {
+    return reply.code(401).send({ ok: false, error: 'Refresh token inválido' });
+  }
+
+  if (new Date(sessionData.expires_at) < new Date()) {
+    await session.deleteByToken(refresh_token);
+    return reply.code(401).send({ ok: false, error: 'Refresh token expirado' });
+  }
+
+  const userResult = await user.findById(sessionData.user_id);
+  const userData = userResult.rows[0];
+
+  if (!userData) {
+    await session.deleteByToken(refresh_token);
+    return reply.code(401).send({ ok: false, error: 'Usuário não encontrado' });
+  }
+
+  await session.deleteByToken(refresh_token);
+
+  const token = authService.generateToken(userData);
+  const newRefreshToken = authService.generateRefreshToken();
+  const expiresAt = authService.getRefreshExpiration();
+
+  await session.create({
+    userId: userData.id,
+    refreshToken: newRefreshToken,
+    expiresAt
+  });
+
+  const { password: _, ...safeUser } = userData;
+
+  return reply.send({
+    ok: true,
+    data: {
+      user: safeUser,
+      token,
+      refresh_token: newRefreshToken,
+      expires_at: expiresAt.toISOString()
+    }
+  });
+}
+
 async function logout(req, reply) {
   const authHeader = req.headers.authorization;
+  const { refresh_token } = req.body || {};
+
+  if (refresh_token) {
+    const { session } = req.server.container.repositories;
+    await session.deleteByToken(refresh_token);
+  }
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
@@ -135,5 +214,6 @@ module.exports = {
   register,
   me,
   logout,
+  refreshToken,
   authMiddleware
 };

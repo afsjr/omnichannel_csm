@@ -8,11 +8,9 @@
   "doc_level": "detalhado",
   "output_folder": "_reversa_sdd",
   "forward_folder": "_reversa_forward",
-  "phase": "revisao",
-  "completed": ["reconhecimento", "escavacao", "interpretacao", "geracao"],
-  "pending": [
-    "revisao"
-  ],
+  "phase": "concluido",
+  "completed": ["reconhecimento", "escavacao", "interpretacao", "geracao", "revisao"],
+  "pending": [],
   "checkpoints": {
     "reconhecimento": "2026-05-19T08:30:00Z",
     "escavacao": "2026-05-19T08:40:00Z",

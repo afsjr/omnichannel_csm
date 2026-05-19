@@ -3,6 +3,8 @@ const crypto = require('crypto');
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET = process.env.JWT_SECRET || 'omnichat-secret-change-in-production';
+const JWT_EXPIRATION = '24h';
+const REFRESH_EXPIRATION_DAYS = 30;
 
 class AuthService {
   hashPassword(password) {
@@ -14,11 +16,16 @@ class AuthService {
   }
 
   generateToken(user) {
+    const now = Math.floor(Date.now() / 1000);
+    const exp = now + 24 * 60 * 60;
+
     const payload = {
       id: user.id,
       email: user.email,
       company_id: user.company_id,
-      role: user.role
+      role: user.role,
+      iat: now,
+      exp
     };
 
     const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
@@ -44,10 +51,26 @@ class AuthService {
         return null;
       }
 
-      return JSON.parse(Buffer.from(body, 'base64url').toString());
+      const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
+
+      if (payload.exp && Date.now() >= payload.exp * 1000) {
+        return null;
+      }
+
+      return payload;
     } catch {
       return null;
     }
+  }
+
+  generateRefreshToken() {
+    return crypto.randomBytes(48).toString('hex');
+  }
+
+  getRefreshExpiration() {
+    const date = new Date();
+    date.setDate(date.getDate() + REFRESH_EXPIRATION_DAYS);
+    return date;
   }
 }
 

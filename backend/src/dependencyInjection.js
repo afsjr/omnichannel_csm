@@ -5,6 +5,7 @@ const ContactRepository = require('./repositories/ContactRepository');
 const MessageRepository = require('./repositories/MessageRepository');
 const ConversationRepository = require('./repositories/ConversationRepository');
 const DepartmentRepository = require('./repositories/DepartmentRepository');
+const SessionRepository = require('./repositories/SessionRepository');
 
 const ChatService = require('./services/ChatService');
 const { createAIServiceContainer } = require('./services/AIService');
@@ -22,7 +23,8 @@ function createContainer(config = {}) {
     contact: new ContactRepository(db),
     conversation: new ConversationRepository(db),
     message: new MessageRepository(db),
-    department: new DepartmentRepository(db)
+    department: new DepartmentRepository(db),
+    session: new SessionRepository(db)
   };
 
   const providers = {

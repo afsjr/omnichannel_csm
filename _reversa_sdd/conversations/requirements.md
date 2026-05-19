@@ -17,7 +17,7 @@ Responsável por gerenciar os estados, atribuições a atendentes, rascunhos de 
 
 ## Regras de Negócio
 
-- **RN-CV01: Ciclo de vida da conversa** — As conversas transitam entre os seguintes estados: `pending` (aguardando triagem), `queued` (na fila de espera), `in_progress` (atendimento em andamento), `resolved` (atendimento finalizado). 🟢
+- **RN-CV01: Ciclo de vida da conversa** — As conversas transitam entre os seguintes estados: `open` (nova, aguardando triagem), `pending` (aguardando atribuição), `queued` (na fila de espera), `in_progress` (atendimento em andamento), `resolved` (atendimento finalizado). `open` é o estado default na criação; `pending` é definido após criação via webhook ou reopen. 🟡 — Revisado: estado `open` faltava na listagem original
 - **RN-CV02: Reabertura automática** — Ao reabrir uma conversa (`reopen`), o atendente associado é limpo (`assigned_to = null`) e o status retorna para `pending`. 🟢
 - **RN-CV03: Reenfileiramento** — Ao reenfileirar uma conversa (`requeue`), o atendente associado é removido e o status torna-se `queued`. 🟢
 - **RN-CV04: Atribuição de atendimento** — Quando uma conversa é atribuída a um atendente, o status obrigatoriamente muda para `in_progress`. 🟢

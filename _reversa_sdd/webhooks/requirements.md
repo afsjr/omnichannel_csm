@@ -9,7 +9,7 @@ Responsável por receber webhooks da Evolution API (WhatsApp), parsear diferente
 ## Responsabilidades
 
 - Receber webhook da Evolution API
-- Parsear payload de多种 formatos de mensagem
+- Parsear payload de múltiplos formatos de mensagem
 - Extrair phone, content, media_type, contact_name
 - Chamar ChatService.processIncomingMessage()
 - Processamento assíncrono de IA após receber mensagem
@@ -18,7 +18,7 @@ Responsável por receber webhooks da Evolution API (WhatsApp), parsear diferente
 
 | ID | Requisito | Prioridade | Critério de Aceite |
 |----|-----------|-----------|-------------------|
-| RF-WH01 | Receber POST /webhook/evolution | Must | Endpoint responde |
+| RF-WH01 | Receber POST /webhook | Must | Endpoint responde |
 | RF-WH02 | Parsear mensagem texto | Must | content extraído |
 | RF-WH03 | Parsear imagem/vídeo/áudio/doc | Must | media_type + url |
 | RF-WH04 | Parsear sticker | Must | treated as image |

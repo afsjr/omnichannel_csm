@@ -148,6 +148,21 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 -- ============================================================
+-- SESSÕES (Refresh Tokens)
+-- Permite logout real e renovação de JWT
+-- ============================================================
+CREATE TABLE IF NOT EXISTS sessions (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  refresh_token TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(refresh_token);
+
+-- ============================================================
 -- ÍNDICES PARA PERFORMANCE
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);

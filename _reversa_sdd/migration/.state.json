@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "startedAt": "2026-05-19T17:00:00Z",
+  "lastCheckpoint": "2026-05-19T17:06:00Z",
+  "completedAgents": ["paradigm_advisor"],
+  "pendingAgents": [
+    "curator",
+    "strategist",
+    "designer",
+    "screen_translator",
+    "inspector"
+  ],
+  "currentAgent": {
+    "agent": "curator",
+    "phase": null,
+    "status": "running",
+    "topologyApproved": false,
+    "screenModeApproved": false
+  },
+  "pendingDecisions": [],
+  "artifacts": {},
+  "auto": false,
+  "engine": "opencode",
+  "reversaVersion": "1.2.43",
+  "briefPath": "_reversa_sdd/migration/migration_brief.md",
+  "expectedLegacyArtifacts": ".agents/skills/reversa-migrate/references/expected_legacy_artifacts.yaml"
+}

@@ -42,15 +42,15 @@
 ## Fase 4: Geração 📝
 
 - [x] **Redator** — Specs SDD por componente (9 módulos)
-- [ ] **Redator** — OpenAPI (se aplicável)
-- [ ] **Redator** — User Stories (se aplicável)
-- [ ] **Redator** — Code/Spec Matrix
+- [ ] **Redator** — OpenAPI (se aplicável) — não gerado
+- [ ] **Redator** — User Stories (se aplicável) — não gerado
+- [ ] **Redator** — Code/Spec Matrix — não gerado
 
 ## Fase 5: Revisão ✅
 
-- [ ] **Revisor** — Revisão cruzada de specs
-- [ ] **Revisor** — Resolução de lacunas com o usuário
-- [ ] **Revisor** — Relatório de confiança final
+- [x] **Revisor** — Revisão cruzada de specs (9 módulos revisados)
+- [x] **Revisor** — Resolução de lacunas com o usuário (5 perguntas respondidas)
+- [x] **Revisor** — Relatório de confiança final (85.8%)
 
 ---
 
