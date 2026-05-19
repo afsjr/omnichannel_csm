@@ -12,6 +12,14 @@
   },
   "rewrites": [
     {
+      "source": "/api/health",
+      "destination": "/api/test"
+    },
+    {
+      "source": "/api/heath",
+      "destination": "/api/test"
+    },
+    {
       "source": "/((?!api(?:/|$)).*)",
       "destination": "/index.html"
     }
