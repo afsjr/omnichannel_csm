@@ -5,18 +5,22 @@
   "chat_language": "pt-br",
   "doc_language": "Português",
   "answer_mode": "chat",
-  "doc_level": "completo",
+  "doc_level": "detalhado",
   "output_folder": "_reversa_sdd",
   "forward_folder": "_reversa_forward",
-  "phase": null,
-  "completed": [],
+  "phase": "reconhecimento",
+  "completed": ["reconhecimento", "escavacao", "interpretacao"],
   "pending": [
-    "reconhecimento",
     "escavacao",
     "interpretacao",
     "geracao",
     "revisao"
   ],
+  "checkpoints": {
+    "reconhecimento": "2026-05-19T08:30:00Z",
+    "escavacao": "2026-05-19T08:40:00Z",
+    "interpretacao": "2026-05-19T08:50:00Z"
+  },
   "checkpoints": {},
   "engines": [
     "codex",

@@ -8,9 +8,9 @@
 
 ## Fase 1: Reconhecimento 🔍
 
-- [ ] **Scout** — Mapeamento de estrutura de pastas e tecnologias
-- [ ] **Scout** — Análise de dependências e gerenciadores de pacotes
-- [ ] **Scout** — Identificação de entry points, CI/CD e configurações
+- [x] **Scout** — Mapeamento de estrutura de pastas e tecnologias
+- [x] **Scout** — Análise de dependências e gerenciadores de pacotes
+- [x] **Scout** — Identificação de entry points, CI/CD e configurações
 
 ## Decisão de organização das specs 🗂️
 
@@ -20,16 +20,24 @@
 
 > O Reversa preenche esta seção com os módulos reais após o Scout concluir o reconhecimento.
 
-- [ ] **Arqueólogo** — Análise dos módulos identificados pelo Scout
+- [x] **Arqueólogo** — Análise do módulo `auth`
+- [x] **Arqueólogo** — Análise do módulo `messages`
+- [x] **Arqueólogo** — Análise do módulo `contacts`
+- [x] **Arqueólogo** — Análise do módulo `conversations`
+- [x] **Arqueólogo** — Análise do módulo `ai`
+- [x] **Arqueólogo** — Análise do módulo `dashboard`
+- [x] **Arqueólogo** — Análise do módulo `websocket`
+- [x] **Arqueólogo** — Análise do módulo `webhooks`
+- [x] **Arqueólogo** — Análise do módulo `instances`
 
 ## Fase 3: Interpretação 🧠
 
-- [ ] **Detetive** — Arqueologia Git e ADRs retroativos
-- [ ] **Detetive** — Regras de negócio implícitas e máquinas de estado
-- [ ] **Detetive** — Matriz de permissões (RBAC/ACL)
-- [ ] **Arquiteto** — Diagramas C4 (Contexto, Containers, Componentes)
-- [ ] **Arquiteto** — ERD completo e integrações externas
-- [ ] **Arquiteto** — Spec Impact Matrix
+- [x] **Detetive** — Arqueologia Git e ADRs retroativos
+- [x] **Detetive** — Regras de negócio implícitas e máquinas de estado
+- [x] **Detetive** — Matriz de permissões (RBAC/ACL)
+- [x] **Arquiteto** — Diagramas C4 (Contexto, Containers, Componentes)
+- [x] **Arquiteto** — ERD completo e integrações externas
+- [x] **Arqteteto** — Spec Impact Matrix
 
 ## Fase 4: Geração 📝
 

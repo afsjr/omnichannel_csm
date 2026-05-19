@@ -1,0 +1,67 @@
+{
+  "project_name": "omni-channel",
+  "scout_timestamp": "2026-05-19T08:30:00Z",
+  "languages": {
+    "javascript": {
+      "count": 55,
+      "files": ["api/*.js", "backend/src/**/*.js", "frontend/src/**/*.jsx"]
+    }
+  },
+  "frameworks": {
+    "backend": "Fastify 4.28.1",
+    "frontend": "React 18.3.1 + Vite 6.0.6",
+    "api_legacy": "Node.js (não especificado)"
+  },
+  "modules": [
+    "auth",
+    "messages",
+    "contacts",
+    "conversations",
+    "ai",
+    "dashboard",
+    "websocket",
+    "webhooks",
+    "instances"
+  ],
+  "database": {
+    "type": "postgresql",
+    "schema": "backend/src/db/schema.sql",
+    "features": ["multi-tenant", "multi-instance-whatsapp", "rbac"]
+  },
+  "entry_points": [
+    {
+      "component": "backend",
+      "file": "backend/src/app.js",
+      "port": 3001
+    },
+    {
+      "component": "frontend",
+      "file": "frontend/src/main.jsx",
+      "port": 5173
+    },
+    {
+      "component": "api_legacy",
+      "file": "api/*.js",
+      "port": "?"
+    }
+  ],
+  "integrations": [
+    "supabase",
+    "evolution-api",
+    "llm-provider"
+  ],
+  "tests": {
+    "framework": null,
+    "coverage": "0%"
+  },
+  "organization_suggestion": {
+    "granularity": "module",
+    "rationale": "Pastas top-level com nomes de domínio claros: api/, backend/src/controllers/, frontend/src/components/. Estrutura orientada a módulos de negócio.",
+    "signals": [
+      {
+        "type": "module",
+        "evidence": ["api/", "backend/src/controllers/", "frontend/src/components/"]
+      }
+    ]
+  }
+}

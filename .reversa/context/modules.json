@@ -1,0 +1,191 @@
+{
+  "generated_at": "2026-05-19T08:40:00Z",
+  "doc_level": "detalhado",
+  "modules": [
+    {
+      "name": "auth",
+      "display_name": "Autenticação e Autorização",
+      "path": "backend/src/services/AuthService.js",
+      "dependencies": ["bcrypt", "crypto"],
+      "entities": [
+        { "table": "users", "type": "main" },
+        { "table": "companies", "type": "related" }
+      ],
+      "functions": [
+        { "name": "hashPassword", "params": ["password"], "return": "string", "complexity": "low" },
+        { "name": "comparePassword", "params": ["password", "hash"], "return": "boolean", "complexity": "low" },
+        { "name": "generateToken", "params": ["user"], "return": "string (JWT)", "complexity": "medium" },
+        { "name": "verifyToken", "params": ["token"], "return": "object|null", "complexity": "medium" }
+      ],
+      "rbac_roles": ["master", "admin", "leader", "agent"],
+      "confidence": "high"
+    },
+    {
+      "name": "messages",
+      "display_name": "Mensagens",
+      "path": "backend/src/services/ChatService.js",
+      "dependencies": ["MessageRepository", "ContactRepository", "ConversationRepository", "EvolutionProvider"],
+      "entities": [
+        { "table": "messages", "type": "main" },
+        { "table": "conversations", "type": "related" },
+        { "table": "contacts", "type": "related" }
+      ],
+      "functions": [
+        { "name": "processIncomingMessage", "params": ["payload"], "return": "object", "complexity": "high", "is_async": true },
+        { "name": "sendMessage", "params": ["conversationId", "content", "senderId"], "return": "message", "complexity": "medium", "is_async": true },
+        { "name": "sendMediaMessage", "params": ["conversationId", "mediaType", "mediaUrl", "caption", "senderId"], "return": "message", "complexity": "medium", "is_async": true },
+        { "name": "normalizePhone", "params": ["phone"], "return": "string", "complexity": "low" }
+      ],
+      "message_types": ["text", "image", "video", "audio", "document", "sticker"],
+      "confidence": "high"
+    },
+    {
+      "name": "contacts",
+      "display_name": "Contatos",
+      "path": "backend/src/repositories/ContactRepository.js",
+      "dependencies": ["SupabaseBaseRepository"],
+      "entities": [
+        { "table": "contacts", "type": "main" },
+        { "table": "companies", "type": "related" }
+      ],
+      "functions": [
+        { "name": "findByPhone", "params": ["companyId", "phone"], "return": "object", "complexity": "low" },
+        { "name": "findOrCreate", "params": ["companyId", "name", "phone"], "return": "object", "complexity": "medium" },
+        { "name": "findAll", "params": ["companyId", "options"], "return": "array", "complexity": "low" },
+        { "name": "normalizePhone", "params": ["phone"], "return": "string", "complexity": "low" }
+      ],
+      "constraints": ["UNIQUE(company_id, phone)"],
+      "confidence": "high"
+    },
+    {
+      "name": "conversations",
+      "display_name": "Conversas",
+      "path": "backend/src/repositories/ConversationRepository.js",
+      "dependencies": ["SupabaseBaseRepository"],
+      "entities": [
+        { "table": "conversations", "type": "main" },
+        { "table": "contacts", "type": "related" },
+        { "table": "departments", "type": "related" },
+        { "table": "users", "type": "related" },
+        { "table": "connections", "type": "related" }
+      ],
+      "functions": [
+        { "name": "findByContactAndStatus", "params": ["companyId", "contactId", "channel", "status"], "return": "object", "complexity": "low" },
+        { "name": "findByCompany", "params": ["companyId", "filters"], "return": "array", "complexity": "medium" },
+        { "name": "create", "params": ["data"], "return": "object", "complexity": "low" },
+        { "name": "update", "params": ["id", "data"], "return": "object", "complexity": "medium" },
+        { "name": "assignTo", "params": ["conversationId", "userId"], "return": "object", "complexity": "low" },
+        { "name": "resolve", "params": ["conversationId"], "return": "object", "complexity": "low" },
+        { "name": "reopen", "params": ["conversationId"], "return": "object", "complexity": "low" }
+      ],
+      "status_values": ["pending", "queued", "in_progress", "open", "resolved"],
+      "confidence": "high"
+    },
+    {
+      "name": "ai",
+      "display_name": "Inteligência Artificial",
+      "path": "backend/src/services/AIService.js",
+      "dependencies": ["TriageService", "AIDraftService", "FunnelClassificationService", "LLMProvider"],
+      "entities": [
+        { "table": "conversations", "fields": ["department_id", "ai_draft", "ai_confidence", "funnel_stage"] }
+      ],
+      "functions": [
+        { "name": "JobQueue.enqueue", "params": ["job"], "return": "jobId", "complexity": "low" },
+        { "name": "JobQueue.process", "params": ["jobId", "processor"], "return": "result", "complexity": "medium", "is_async": true },
+        { "name": "AIProcessingService.enqueueTriage", "params": ["conversationId"], "return": "jobId", "complexity": "low" },
+        { "name": "AIProcessingService.enqueueDraft", "params": ["conversationId"], "return": "jobId", "complexity": "low" },
+        { "name": "AIProcessingService.processAll", "params": [], "return": "array", "complexity": "medium", "is_async": true }
+      ],
+      "job_types": ["triage", "generate_draft"],
+      "confidence": "medium"
+    },
+    {
+      "name": "triage",
+      "display_name": "Triagem de Mensagens",
+      "path": "backend/src/services/TriageService.js",
+      "dependencies": ["LLMProvider", "FunnelClassificationService", "ConversationRepository", "MessageRepository"],
+      "functions": [
+        { "name": "triage", "params": ["conversationId"], "return": "object", "complexity": "high", "is_async": true },
+        { "name": "parseDepartment", "params": ["response"], "return": "string", "complexity": "low" },
+        { "name": "findDepartmentByName", "params": ["name"], "return": "object|null", "complexity": "low" }
+      ],
+      "departments": ["Comercial", "Financeiro", "Secretaria", "Acadêmico"],
+      "confidence": "medium"
+    },
+    {
+      "name": "dashboard",
+      "display_name": "Painel e Métricas",
+      "path": "backend/src/controllers/dashboardController.js",
+      "dependencies": ["conversationRepository", "messageRepository", "userRepository"],
+      "entities": [
+        { "table": "conversations", "type": "query" },
+        { "table": "messages", "type": "query" },
+        { "table": "users", "type": "query" },
+        { "table": "departments", "type": "query" }
+      ],
+      "functions": [
+        { "name": "getStats", "params": ["req", "reply"], "return": "object", "complexity": "high", "is_async": true },
+        { "name": "getDashboardStats", "params": ["req", "reply"], "return": "object", "complexity": "high", "is_async": true },
+        { "name": "getRecentActivity", "params": ["req", "reply"], "return": "array", "complexity": "medium", "is_async": true }
+      ],
+      "metrics": ["total", "open", "queued", "resolved", "onlineAgents", "avgResponseTime", "byDepartment", "byStatus", "byAgent", "funnel"],
+      "periods": ["today", "week", "month"],
+      "confidence": "high"
+    },
+    {
+      "name": "websocket",
+      "display_name": "Tempo Real",
+      "path": "backend/src/websocket/index.js",
+      "dependencies": ["Socket.IO"],
+      "entities": [],
+      "functions": [
+        { "name": "initWebSocket", "params": ["fastify", "container"], "return": "io", "complexity": "low", "is_async": true }
+      ],
+      "rooms": ["department:{id}", "user:{id}", "conversation:{id}"],
+      "events": ["connected", "ai_processing_complete", "join:*", "leave:*"],
+      "confidence": "high"
+    },
+    {
+      "name": "webhooks",
+      "display_name": "Webhooks",
+      "path": "backend/src/controllers/webhookController.js",
+      "dependencies": ["ChatService", "AIProcessingService"],
+      "entities": [],
+      "functions": [
+        { "name": "receiveWebhook", "params": ["req", "reply"], "return": "object", "complexity": "high", "is_async": true },
+        { "name": "parseWebhookPayload", "params": ["payload"], "return": "object", "complexity": "medium" }
+      ],
+      "supported_events": ["messages.upsert"],
+      "confidence": "high"
+    },
+    {
+      "name": "instances",
+      "display_name": "Instâncias WhatsApp",
+      "path": "api/instances.js",
+      "dependencies": ["Supabase", "Evolution API"],
+      "entities": [
+        { "table": "connections", "type": "main" },
+        { "table": "companies", "type": "related" },
+        { "table": "departments", "type": "related" }
+      ],
+      "functions": [
+        { "name": "listInstances", "params": ["req", "res"], "return": "object", "complexity": "low" },
+        { "name": "createInstance", "params": ["req", "res"], "return": "object", "complexity": "medium" },
+        { "name": "connectInstance", "params": ["req", "res"], "return": "object", "complexity": "high" },
+        { "name": "disconnectInstance", "params": ["req", "res"], "return": "object", "complexity": "low" }
+      ],
+      "connection_status": ["offline", "connecting", "connected"],
+      "confidence": "high"
+    }
+  ],
+  "summary": {
+    "total_modules": 10,
+    "total_entities": 7,
+    "complexity_avg": "medium-high",
+    "confidence_distribution": {
+      "high": 8,
+      "medium": 2,
+      "low": 0
+    }
+  }
+}
