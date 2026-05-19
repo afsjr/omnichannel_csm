@@ -5,22 +5,59 @@
   "functions": {
     "api/**/*.js": {
       "maxDuration": 30
-    },
-    "api/**/*.ts": {
-      "maxDuration": 30
     }
   },
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/health",
-      "destination": "/api/test"
+      "src": "/api/auth/login",
+      "dest": "/api/login.js"
     },
     {
-      "source": "/api/heath",
-      "destination": "/api/test"
+      "src": "/api/auth/signup",
+      "dest": "/api/auth/signup.js"
     },
     {
-      "source": "/((?!api(?:/|$)).*)",
+      "src": "/api/auth/reset-password",
+      "dest": "/api/auth/reset-password.js"
+    },
+    {
+      "src": "/api/auth/update-password",
+      "dest": "/api/auth/update-password.js"
+    },
+    {
+      "src": "/api/auth/manage-users",
+      "dest": "/api/auth/manage-users.js"
+    },
+    {
+      "src": "/api/login",
+      "dest": "/api/login.js"
+    },
+    {
+      "src": "/api/register",
+      "dest": "/api/register.js"
+    },
+    {
+      "src": "/api/queue",
+      "dest": "/api/queue.js"
+    },
+    {
+      "src": "/api/users",
+      "dest": "/api/users.js"
+    },
+    {
+      "src": "/api/webhook",
+      "dest": "/api/webhook-handler.js"
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/health.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1.js"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
