@@ -8,25 +8,24 @@
   "doc_level": "detalhado",
   "output_folder": "_reversa_sdd",
   "forward_folder": "_reversa_forward",
-  "phase": "reconhecimento",
+  "phase": "revisao",
   "completed": ["reconhecimento", "escavacao", "interpretacao", "geracao"],
   "pending": [
-    "geracao",
     "revisao"
   ],
   "checkpoints": {
     "reconhecimento": "2026-05-19T08:30:00Z",
     "escavacao": "2026-05-19T08:40:00Z",
     "interpretacao": "2026-05-19T08:50:00Z",
-    "geracao": "2026-05-19T09:00:00Z"
+    "geracao": "2026-05-19T09:00:00Z",
+    "revisao": "2026-05-19T16:45:00Z"
   },
   "redator_progress": {
-    "unit_atual": "messages",
-    "arquivo_atual": "tasks.md",
-    "units_concluidas": ["auth", "messages"],
-    "arquivos_gerados": 5
+    "unit_atual": null,
+    "arquivo_atual": null,
+    "units_concluidas": ["auth", "messages", "contacts", "conversations", "ai", "dashboard", "websocket", "webhooks", "instances"],
+    "arquivos_gerados": 47
   },
-  "checkpoints": {},
   "engines": [
     "codex",
     "antigravity",

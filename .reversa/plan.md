@@ -41,7 +41,7 @@
 
 ## Fase 4: Geração 📝
 
-- [ ] **Redator** — Specs SDD por componente
+- [x] **Redator** — Specs SDD por componente (9 módulos)
 - [ ] **Redator** — OpenAPI (se aplicável)
 - [ ] **Redator** — User Stories (se aplicável)
 - [ ] **Redator** — Code/Spec Matrix
