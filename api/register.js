@@ -1,8 +1,13 @@
 /**
- * API de Registro - v2 - crypto
+ * API de Registro
+ * Endpoint: POST /api/register
+ * 
+ * CORREÇÕES FEITAS (2026-05-19):
+ * - Trocado SHA256 por bcrypt para hash de senhas (segurança)
+ * - Padrão: bcrypt com salt de 10 rodadas
  */
 
-const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -28,7 +33,7 @@ module.exports = async (req, res) => {
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Tenta inserir
     const { data: user, error } = await supabase

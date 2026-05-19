@@ -1,6 +1,14 @@
+/**
+ * Auth API - Módulo central de autenticação
+ * Roteia: /auth/login, /auth/register, /auth/me
+ * 
+ * CORREÇÕES FEITAS (2026-05-19):
+ * - Trocado SHA256 por bcrypt para hash de senhas (segurança)
+ */
+
 const { verifyApiKey } = require('../../lib/security');
 const { supabase } = require('../../lib/db');
-const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 async function login(req, res) {
   if (req.method !== 'POST') {
@@ -24,8 +32,7 @@ async function login(req, res) {
       return res.status(401).json({ ok: false, error: 'Usuário não encontrado' });
     }
 
-    const inputHash = crypto.createHash('sha256').update(password).digest('hex');
-    const validPassword = inputHash === user.password;
+    const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
       return res.status(401).json({ ok: false, error: 'Senha incorreta' });
@@ -69,7 +76,7 @@ async function register(req, res) {
   }
 
   try {
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data: user, error } = await supabase
       .from('users')
