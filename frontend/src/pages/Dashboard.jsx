@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuthStore } from '../contexts/AuthContext'
+import { useAuthStore, ROLES } from '../contexts/AuthContext'
 import { useChatStore } from '../contexts/ChatContext'
 import ChatWindow from '../components/ChatWindow'
 import ContactsModal from '../components/ContactsModal'
@@ -26,6 +26,11 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [showResolved, setShowResolved] = useState(false)
   const [showContacts, setShowContacts] = useState(false)
+  const [showUserManagement, setShowUserManagement] = useState(false)
+  const [users, setUsers] = useState([])
+  const [usersLoading, setUsersLoading] = useState(false)
+
+  const { hasPermission, isAdmin, isMaster } = useAuthStore()
 
   useEffect(() => {
     fetchQueue(1, filterDept)
@@ -78,6 +83,24 @@ export default function Dashboard() {
     window.location.href = '/login'
   }
 
+  const fetchUsers = async () => {
+    setUsersLoading(true)
+    try {
+      const result = await useAuthStore.getState().getUsers()
+      if (result.ok) {
+        setUsers(result.data.users)
+      }
+    } catch (err) {
+      console.error('Failed to fetch users:', err)
+    }
+    setUsersLoading(false)
+  }
+
+  const getRoleLabel = (role) => {
+    const labels = { master: '👑 Master', admin: '⚡ Admin', leader: '👥 Líder', agent: '🎯 Atendente' }
+    return labels[role] || role
+  }
+
   const formatTime = (date) => {
     if (!date) return ''
     const d = new Date(date)
@@ -126,6 +149,11 @@ export default function Dashboard() {
       <header className="dashboard-header">
         <h1>OmniChat CSM</h1>
         <div className="header-right">
+          {isAdmin() && (
+            <button onClick={() => { setShowUserManagement(true); fetchUsers(); }} className="btn-logout">
+              👥 Equipe
+            </button>
+          )}
           <button onClick={() => setShowStats(!showStats)} className="btn-logout">
             {showStats ? 'Voltar ao Chat' : '📊 Estatísticas'}
           </button>

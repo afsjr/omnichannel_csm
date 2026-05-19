@@ -1,8 +1,11 @@
 /**
  * API de Login
  * Endpoint: POST /api/login
+ * 
+ * Usa Supabase Auth para autenticar e busca role na tabela users
  */
 
+const { signIn } = require('../lib/auth-supabase');
 const { getSupabase } = require('../lib/db');
 
 module.exports = async (req, res) => {
@@ -17,29 +20,30 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const supabase = getSupabase();
-    
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, name, email, password, role, company_id, department_id, is_active')
-      .eq('email', email)
-      .eq('is_active', true)
-      .single();
+    const result = await signIn(email, password);
 
-    if (error || !user) {
-      return res.status(401).json({ ok: false, error: 'Usuário não encontrado ou inativo' });
+    if (!result.success) {
+      return res.status(401).json({ ok: false, error: result.error || 'Credenciais inválidas' });
     }
 
-    const bcrypt = require('bcrypt');
-    const validPassword = await bcrypt.compare(password, user.password);
+    const supabase = getSupabase();
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, name, email, role, company_id, department_id, is_active')
+      .eq('email', email)
+      .single();
 
-    if (!validPassword) {
-      return res.status(401).json({ ok: false, error: 'Senha incorreta' });
+    if (userError || !userData) {
+      return res.status(401).json({ ok: false, error: 'Usuário não encontrado no sistema' });
+    }
+
+    if (!userData.is_active) {
+      return res.status(401).json({ ok: false, error: 'Usuário inativo' });
     }
 
     const jwt = require('jsonwebtoken');
     const token = jwt.sign(
-      { userId: user.id, companyId: user.company_id, role: user.role },
+      { userId: userData.id, companyId: userData.company_id, role: userData.role },
       process.env.JWT_SECRET || 'default-secret',
       { expiresIn: '7d' }
     );
@@ -48,14 +52,15 @@ module.exports = async (req, res) => {
       ok: true,
       data: {
         user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          company_id: user.company_id,
-          department_id: user.department_id
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          company_id: userData.company_id,
+          department_id: userData.department_id
         },
-        token
+        token,
+        accessToken: result.data.accessToken
       }
     });
   } catch (error) {

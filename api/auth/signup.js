@@ -3,9 +3,11 @@
  * Endpoint: POST /api/auth/signup
  * 
  * Cria novo usuário com confirmação de email via Supabase
+ * Também cria registro na tabela users do banco com role 'agent'
  */
 
 const { signUp } = require('../../lib/auth-supabase');
+const { getSupabase } = require('../../lib/db');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -45,6 +47,29 @@ module.exports = async (req, res) => {
         ok: false, 
         error: result.error 
       });
+    }
+
+    const supabase = getSupabase()
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single()
+
+    if (!existingUser) {
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          company_id: 1,
+          name: name || email.split('@')[0],
+          email,
+          role: 'agent',
+          is_active: true
+        })
+
+      if (insertError) {
+        console.error('Erro ao criar registro na tabela users:', insertError)
+      }
     }
 
     res.status(201).json({
