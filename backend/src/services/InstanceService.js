@@ -76,23 +76,13 @@ class InstanceService {
       throw Object.assign(new Error('Instância já conectada'), { statusCode: 409 });
     }
 
-    const evolutionUrl = instance.api_url || process.env.EVOLUTION_API_URL;
-    const evolutionKey = instance.api_key || process.env.EVOLUTION_API_KEY;
-
-    const response = await fetch(`${evolutionUrl}/instance/connect/${instance.instance_name}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': evolutionKey
-      }
-    });
-
-    const evolutionResult = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
+    let evolutionResult;
+    try {
+      evolutionResult = await this.evolutionProvider.connect(instance.instance_name);
+    } catch (error) {
       throw Object.assign(
         new Error('Falha ao conectar instância'),
-        { statusCode: 502, details: evolutionResult }
+        { statusCode: 502, details: error.message }
       );
     }
 

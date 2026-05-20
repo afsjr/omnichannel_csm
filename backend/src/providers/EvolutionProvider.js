@@ -93,6 +93,36 @@ class EvolutionProvider {
     return cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
   }
 
+  async connect(instanceName) {
+    const url = `${this.baseUrl}/instance/connect/${instanceName}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: this.getHeaders()
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Evolution API connect error: ${response.status} - ${error}`);
+    }
+
+    return response.json();
+  }
+
+  async disconnect(instanceName) {
+    const url = `${this.baseUrl}/instance/disconnect/${instanceName}`;
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: this.getHeaders()
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Evolution API disconnect error: ${response.status} - ${error}`);
+    }
+
+    return response.json();
+  }
+
   async getInstanceStatus() {
     const url = `${this.baseUrl}/instance/connectionState/${this.instanceName}`;
     const response = await fetch(url, {
