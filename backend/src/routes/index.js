@@ -4,6 +4,8 @@ const webhookController = require('../controllers/webhookController');
 const aiController = require('../controllers/aiController');
 const dashboardController = require('../controllers/dashboardController');
 const contactController = require('../controllers/contactController');
+const instanceController = require('../controllers/instanceController');
+const { requirePermission } = require('../middlewares/permissions');
 
 async function routes(fastify) {
   fastify.get('/health', async () => ({ ok: true }));
@@ -177,6 +179,15 @@ async function routes(fastify) {
   fastify.get('/contacts/:id', contactController.getContact);
   fastify.put('/contacts/:id', contactController.updateContact);
   fastify.post('/contacts/start-conversation', contactController.startConversation);
+
+  // Instances
+  fastify.get('/instances', { preHandler: [requirePermission('instances:read')] }, instanceController.listInstances);
+  fastify.post('/instances', { preHandler: [requirePermission('instances:create')] }, instanceController.createInstance);
+  fastify.get('/instances/:id', { preHandler: [requirePermission('instances:read')] }, instanceController.getInstance);
+  fastify.put('/instances/:id', { preHandler: [requirePermission('instances:update')] }, instanceController.updateInstance);
+  fastify.delete('/instances/:id', { preHandler: [requirePermission('instances:delete')] }, instanceController.deleteInstance);
+  fastify.post('/instances/:id/connect', { preHandler: [requirePermission('instances:connect')] }, instanceController.connectInstance);
+  fastify.post('/instances/:id/disconnect', { preHandler: [requirePermission('instances:connect')] }, instanceController.disconnectInstance);
 }
 
 module.exports = routes;

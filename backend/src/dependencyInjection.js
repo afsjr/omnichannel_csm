@@ -6,8 +6,11 @@ const MessageRepository = require('./repositories/MessageRepository');
 const ConversationRepository = require('./repositories/ConversationRepository');
 const DepartmentRepository = require('./repositories/DepartmentRepository');
 const SessionRepository = require('./repositories/SessionRepository');
+const InstanceRepository = require('./repositories/InstanceRepository');
 
 const ChatService = require('./services/ChatService');
+const InstanceService = require('./services/InstanceService');
+const AuthService = require('./services/AuthService');
 const { createAIServiceContainer } = require('./services/AIService');
 const LLMProvider = require('./providers/LLMProvider');
 const EvolutionProvider = require('./providers/EvolutionProvider');
@@ -24,7 +27,8 @@ function createContainer(config = {}) {
     conversation: new ConversationRepository(db),
     message: new MessageRepository(db),
     department: new DepartmentRepository(db),
-    session: new SessionRepository(db)
+    session: new SessionRepository(db),
+    instance: new InstanceRepository(db)
   };
 
   const providers = {
@@ -33,11 +37,16 @@ function createContainer(config = {}) {
   };
 
   const services = {
+    auth: new AuthService(),
     chat: new ChatService({
       contactRepository: repositories.contact,
       conversationRepository: repositories.conversation,
       messageRepository: repositories.message,
       departmentRepository: repositories.department,
+      evolutionProvider: providers.evolution
+    }),
+    instance: new InstanceService({
+      instanceRepository: repositories.instance,
       evolutionProvider: providers.evolution
     })
   };
