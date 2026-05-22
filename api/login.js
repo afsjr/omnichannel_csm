@@ -48,6 +48,8 @@ module.exports = async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    const refreshToken = result.data?.refreshToken || result.data?.refresh_token || token;
+
     return res.status(200).json({
       ok: true,
       data: {
@@ -60,7 +62,7 @@ module.exports = async (req, res) => {
           department_id: userData.department_id
         },
         token,
-        accessToken: result.data.accessToken
+        refresh_token: refreshToken
       }
     });
   } catch (error) {
