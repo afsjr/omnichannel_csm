@@ -77,6 +77,18 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  refreshMessages: async (conversationId) => {
+    const res = await apiFetch(`/messages/conversation/${conversationId}`)
+    const data = await res.json()
+    if (data.ok) {
+      set({
+        messages: data.data.messages || [],
+        draft: data.data.conversation.ai_draft,
+        draftConfidence: data.data.conversation.ai_confidence,
+      })
+    }
+  },
+
   processWithAI: async (conversationId) => {
     set({ isAILoading: true })
     const res = await apiFetch('/ai/process', {

@@ -15,6 +15,7 @@ export default function ChatWindow() {
     sendMediaMessage,
     processWithAI,
     updateDraft,
+    refreshMessages,
     resolveConversation,
     isLoading 
   } = useChatStore()
@@ -34,6 +35,14 @@ export default function ChatWindow() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (!activeConversation?.id) return
+    const interval = setInterval(() => {
+      refreshMessages(activeConversation.id)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [activeConversation?.id])
 
   const handleSend = async () => {
     if (!input.trim() || sending) return
