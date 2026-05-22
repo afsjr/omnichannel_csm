@@ -13,8 +13,8 @@ module.exports = async (req, res) => {
 
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
 
-  const segments = req.query.slug || [];
-  const action = segments[0] || '';
+  const slug = req.query.slug;
+  const action = Array.isArray(slug) ? (slug[0] || '') : (slug || '');
   const { companyId } = req.query || {};
   const cid = Number(companyId || user.companyId || 1);
 

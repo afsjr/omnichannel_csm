@@ -126,8 +126,8 @@ async function startConversation(req, res) {
 }
 
 module.exports = async (req, res) => {
-  const segments = req.query.slug || [];
-  const action = segments[0] || '';
+  const slug = req.query.slug;
+  const action = Array.isArray(slug) ? (slug[0] || '') : (slug || '');
 
   if (!action) {
     if (req.method === 'GET') return listContacts(req, res);

@@ -78,8 +78,8 @@ async function processWithAI(req, res) {
 }
 
 module.exports = async (req, res) => {
-  const segments = req.query.slug || [];
-  const action = segments[0] || '';
+  const slug = req.query.slug;
+  const action = Array.isArray(slug) ? (slug[0] || '') : (slug || '');
 
   switch (action) {
     case 'triage': return triage(req, res);
