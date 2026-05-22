@@ -202,6 +202,23 @@ async function reopenConversation(req, reply) {
   return reply.send({ ok: true, data: conversation });
 }
 
+async function requeueConversation(req, reply) {
+  const { conversationId } = req.body || {};
+  const { chat } = req.server.container.services;
+
+  if (!conversationId) {
+    return reply.code(400).send({ ok: false, error: 'conversationId e obrigatorio' });
+  }
+
+  const conversation = await chat.requeueConversation(Number(conversationId));
+
+  if (req.server.io) {
+    req.server.io.to('department:queue').emit('conversation_updated', conversation);
+  }
+
+  return reply.send({ ok: true, data: conversation });
+}
+
 async function getResolved(req, reply) {
   const { companyId, limit } = req.query || {};
   const { chat } = req.server.container.services;
@@ -259,5 +276,6 @@ module.exports = {
   updateDraft,
   resolveConversation,
   reopenConversation,
+  requeueConversation,
   getResolved
 };

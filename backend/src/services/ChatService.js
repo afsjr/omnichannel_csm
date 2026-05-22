@@ -251,13 +251,22 @@ class ChatService {
 
     if (existingConv.rowCount > 0) {
       await this.conversationRepository.reopen(existingConv.rows[0].id);
-    } else {
-      const existing = await this.conversationRepository.findByContactAndStatus(
-        companyId, contactId, 'whatsapp', 'pending'
+      const messageResult = await this.messageRepository.createOutgoing(
+        existingConv.rows[0].id, content, null, 'pending'
       );
-      if (existing.rowCount > 0) {
-        throw new Error('Conversa ja existe com este contato');
-      }
+      return {
+        conversation: existingConv.rows[0],
+        message: messageResult.rows[0],
+        isNew: false,
+        wasReopened: true
+      };
+    }
+
+    const existing = await this.conversationRepository.findByContactAndStatus(
+      companyId, contactId, 'whatsapp', 'pending'
+    );
+    if (existing.rowCount > 0) {
+      throw new Error('Conversa ja existe com este contato');
     }
 
     const convResult = await this.conversationRepository.create({

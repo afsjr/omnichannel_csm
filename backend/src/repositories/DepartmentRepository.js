@@ -41,17 +41,20 @@ class DepartmentRepository extends SupabaseBaseRepository {
     return { rows: data ? [data] : [], rowCount: data ? 1 : 0 };
   }
 
-  async findByName(name) {
-    const { data, error } = await this.client
+  async findByName(name, companyId) {
+    let query = this.client
       .from('departments')
       .select('*')
       .ilike('name', name)
-      .limit(1)
-      .single();
+      .limit(1);
 
-    if (error && error.code !== 'PGRST116') {
-      throw error;
+    if (companyId) {
+      query = query.eq('company_id', companyId);
     }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) throw error;
     return { rows: data ? [data] : [], rowCount: data ? 1 : 0 };
   }
 }

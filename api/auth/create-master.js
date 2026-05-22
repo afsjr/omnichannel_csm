@@ -41,6 +41,8 @@ const MASTER_PASSWORD = 'Master@2026!'
 const MASTER_NAME = 'Administrador Master'
 
 async function createMasterUser() {
+  const bcrypt = require('bcrypt');
+  const hashedPassword = await bcrypt.hash(MASTER_PASSWORD, 10);
   console.log('🔧 Criando usuário MASTER...\n')
 
   try {
@@ -98,22 +100,32 @@ async function createMasterUser() {
         console.log('   ✓ Usuário master já existe')
       }
     } else {
-      const { error: insertError } = await supabaseAdmin
+      const { data: existingUser } = await supabaseAdmin
         .from('users')
-        .insert({
-          id: authId,
-          company_id: 1,
-          name: MASTER_NAME,
-          email: MASTER_EMAIL,
-          role: 'master',
-          is_active: true,
-          department_id: null
-        })
+        .select('id')
+        .eq('email', MASTER_EMAIL)
+        .maybeSingle()
 
-      if (insertError) {
-        console.error('   ❌ Erro ao inserir na tabela users:', insertError.message)
+      if (existingUser) {
+        console.log('   ✓ Usuário já existe na tabela users (id=' + existingUser.id + ')')
       } else {
-        console.log('   ✓ Criado na tabela users com role master')
+        const { error: insertError } = await supabaseAdmin
+          .from('users')
+          .insert({
+            company_id: 1,
+            name: MASTER_NAME,
+            email: MASTER_EMAIL,
+            password: hashedPassword,
+            role: 'master',
+            is_active: true,
+            department_id: null
+          })
+
+        if (insertError) {
+          console.error('   ❌ Erro ao inserir na tabela users:', insertError.message)
+        } else {
+          console.log('   ✓ Criado na tabela users com role master')
+        }
       }
     }
 

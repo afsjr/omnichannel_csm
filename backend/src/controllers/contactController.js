@@ -60,7 +60,8 @@ async function updateContact(req, reply) {
 
 async function startConversation(req, reply) {
   const { contactId, content } = req.body || {};
-  const { chat, contact } = req.server.container.services;
+  const { chat } = req.server.container.services;
+  const { contact } = req.server.container.repositories;
 
   if (!contactId) {
     return reply.code(400).send({ ok: false, error: 'contactId e obrigatorio' });

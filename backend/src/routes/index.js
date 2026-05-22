@@ -144,24 +144,25 @@ async function routes(fastify) {
   fastify.post('/auth/refresh', authController.refreshToken);
 
   // Messages
-  fastify.post('/messages/send', messageController.sendMessage);
-  fastify.get('/messages/conversation/:id', messageController.getConversation);
-  fastify.get('/messages/queue', messageController.getQueue);
-  fastify.get('/messages/my-conversations', messageController.getMyConversations);
-  fastify.post('/messages/assign', messageController.assignConversation);
-  fastify.post('/messages/draft', messageController.updateDraft);
-  fastify.post('/messages/resolve', messageController.resolveConversation);
-  fastify.post('/messages/reopen', messageController.reopenConversation);
-  fastify.get('/messages/resolved', messageController.getResolved);
-  fastify.post('/messages/send-media', messageController.sendMedia);
+  fastify.post('/messages/send', { preHandler: [authController.authMiddleware] }, messageController.sendMessage);
+  fastify.get('/messages/conversation/:id', { preHandler: [authController.authMiddleware] }, messageController.getConversation);
+  fastify.get('/messages/queue', { preHandler: [authController.authMiddleware] }, messageController.getQueue);
+  fastify.get('/messages/my-conversations', { preHandler: [authController.authMiddleware] }, messageController.getMyConversations);
+  fastify.post('/messages/assign', { preHandler: [authController.authMiddleware] }, messageController.assignConversation);
+  fastify.post('/messages/draft', { preHandler: [authController.authMiddleware] }, messageController.updateDraft);
+  fastify.post('/messages/resolve', { preHandler: [authController.authMiddleware] }, messageController.resolveConversation);
+  fastify.post('/messages/reopen', { preHandler: [authController.authMiddleware] }, messageController.reopenConversation);
+  fastify.post('/messages/requeue', { preHandler: [authController.authMiddleware] }, messageController.requeueConversation);
+  fastify.get('/messages/resolved', { preHandler: [authController.authMiddleware] }, messageController.getResolved);
+  fastify.post('/messages/send-media', { preHandler: [authController.authMiddleware] }, messageController.sendMedia);
 
   // AI
-  fastify.post('/ai/process', aiController.processWithAI);
-  fastify.post('/ai/triage', aiController.triageOnly);
-  fastify.post('/ai/draft', aiController.generateDraftOnly);
+  fastify.post('/ai/process', { preHandler: [authController.authMiddleware] }, aiController.processWithAI);
+  fastify.post('/ai/triage', { preHandler: [authController.authMiddleware] }, aiController.triageOnly);
+  fastify.post('/ai/draft', { preHandler: [authController.authMiddleware] }, aiController.generateDraftOnly);
 
   // Departments
-  fastify.get('/departments', async (req, reply) => {
+  fastify.get('/departments', { preHandler: [authController.authMiddleware] }, async (req, reply) => {
     const { companyId } = req.query || {};
     const { department } = req.server.container.repositories;
     const result = await department.findActiveByCompany(Number(companyId) || 1);
@@ -169,16 +170,16 @@ async function routes(fastify) {
   });
 
   // Dashboard
-  fastify.get('/dashboard/stats', dashboardController.getStats);
-  fastify.get('/dashboard/activity', dashboardController.getRecentActivity);
-  fastify.get('/dashboard/full', dashboardController.getDashboardStats);
+  fastify.get('/dashboard/stats', { preHandler: [authController.authMiddleware] }, dashboardController.getStats);
+  fastify.get('/dashboard/activity', { preHandler: [authController.authMiddleware] }, dashboardController.getRecentActivity);
+  fastify.get('/dashboard/full', { preHandler: [authController.authMiddleware] }, dashboardController.getDashboardStats);
 
   // Contacts
-  fastify.get('/contacts', contactController.listContacts);
-  fastify.post('/contacts', contactController.createContact);
-  fastify.get('/contacts/:id', contactController.getContact);
-  fastify.put('/contacts/:id', contactController.updateContact);
-  fastify.post('/contacts/start-conversation', contactController.startConversation);
+  fastify.get('/contacts', { preHandler: [authController.authMiddleware] }, contactController.listContacts);
+  fastify.post('/contacts', { preHandler: [authController.authMiddleware] }, contactController.createContact);
+  fastify.get('/contacts/:id', { preHandler: [authController.authMiddleware] }, contactController.getContact);
+  fastify.put('/contacts/:id', { preHandler: [authController.authMiddleware] }, contactController.updateContact);
+  fastify.post('/contacts/start-conversation', { preHandler: [authController.authMiddleware] }, contactController.startConversation);
 
   // Instances
   fastify.get('/instances', { preHandler: [requirePermission('instances:read')] }, instanceController.listInstances);

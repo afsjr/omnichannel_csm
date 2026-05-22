@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { useAuthStore } from '../contexts/AuthContext';
 
 class SocketService {
   constructor() {
@@ -8,9 +9,11 @@ class SocketService {
 
   connect(url = '') {
     const wsUrl = url || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host;
+    const token = useAuthStore.getState().token;
 
     this.socket = io(wsUrl, {
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      auth: { token }
     });
 
     this.socket.on('connect', () => {

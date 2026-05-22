@@ -32,8 +32,8 @@ function parseWebhookPayload(payload) {
 
   if (msg?.extendedTextMessage?.text) {
     result.content = msg.extendedTextMessage.text;
-  } else if (msg?.conversation?.[0]) {
-    result.content = msg.conversation[0];
+  } else if (msg?.conversation) {
+    result.content = typeof msg.conversation === 'string' ? msg.conversation : msg.conversation[0];
   } else if (msg?.imageMessage) {
     const img = msg.imageMessage;
     result.content = img.caption || '[Imagem]';

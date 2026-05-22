@@ -1,21 +1,12 @@
 const LLMProvider = require('../providers/LLMProvider');
 const FunnelClassificationService = require('./FunnelClassificationService');
 
-const DEPARTMENT_PROMPT = `Você é um assistente de triagem de mensagens de uma escola técnica de enfermagem. Analise a mensagem do aluno e classifique qual setor deve atender.
-
-SETORES DISPONÍVEIS:
-- Comercial: dúvidas sobre cursos, matrículas, preços, prazos, informações gerais de vendas
-- Financeiro: questões sobre pagamentos, boletos, parcelamentos, renegciação, valores em atraso
-- Secretaria: atendimentos administrativos, documentos, declarações, históricos, transfers
-- Acadêmico: dúvidas sobre aulas, provas, certificados, estágios, convênios hospitalares
-
-INSTRUÇÕES:
-1. Leia atentamente a mensagem
-2. Classifique para o setor mais adequado
-3. Se a mensagem não couber em nenhum setor específico, classifique como "Comercial"
-4. Retorne APENAS o nome do setor (Comercial, Financeiro, Secretaria ou Acadêmico)
-
-Se houver mais de um setor applicable, escolha o principal baseado na necessidade mais urgente.`;
+const DEFAULT_DEPARTMENTS = [
+  { name: 'Comercial', description: 'dúvidas sobre cursos, matrículas, preços, prazos, informações gerais de vendas' },
+  { name: 'Financeiro', description: 'questões sobre pagamentos, boletos, parcelamentos, negociação, valores em atraso' },
+  { name: 'Secretaria', description: 'atendimentos administrativos, documentos, declarações, históricos, transferências' },
+  { name: 'Acadêmico', description: 'dúvidas sobre aulas, provas, certificados, estágios, convênios hospitalares' }
+];
 
 class TriageService {
   constructor({ llmProvider, conversationRepository, messageRepository, departmentRepository }) {
@@ -23,11 +14,52 @@ class TriageService {
     this.conversationRepository = conversationRepository;
     this.messageRepository = messageRepository;
     this.departmentRepository = departmentRepository;
-    this.departments = ['Comercial', 'Financeiro', 'Secretaria', 'Acadêmico'];
     this.funnelService = new FunnelClassificationService();
   }
 
+  async loadDepartments(companyId) {
+    if (!this.departmentRepository) return DEFAULT_DEPARTMENTS;
+    try {
+      const result = await this.departmentRepository.findByCompany(companyId);
+      if (result.rows.length > 0) {
+        return result.rows.map(d => ({
+          name: d.name,
+          description: d.description || `Setor ${d.name}`
+        }));
+      }
+    } catch {
+      // fallback
+    }
+    return DEFAULT_DEPARTMENTS;
+  }
+
+  buildPrompt(departments) {
+    const deptLines = departments
+      .map(d => `- ${d.name}: ${d.description}`)
+      .join('\n');
+
+    return `Você é um assistente de triagem de mensagens. Analise a mensagem e classifique qual setor deve atender.
+
+SETORES DISPONÍVEIS:
+${deptLines}
+
+INSTRUÇÕES:
+1. Leia atentamente a mensagem
+2. Classifique para o setor mais adequado
+3. Se a mensagem não couber em nenhum setor específico, classifique como "${departments[0]?.name || 'Comercial'}"
+4. Retorne APENAS o nome do setor
+
+Se houver mais de um setor aplicável, escolha o principal baseado na necessidade mais urgente.`;
+  }
+
   async triage(conversationId) {
+    const convResult = await this.conversationRepository.findById(conversationId);
+    const conversation = convResult.rows[0];
+    const companyId = conversation?.company_id || 1;
+
+    const departments = await this.loadDepartments(companyId);
+    const departmentNames = departments.map(d => d.name);
+
     const messagesResult = await this.messageRepository.getConversationHistory(conversationId, 10);
     const messages = messagesResult.rows.map(m => ({
       sender: m.sender_type,
@@ -45,14 +77,15 @@ class TriageService {
 
     const lastMessage = messages[messages.length - 1].content;
 
+    const prompt = this.buildPrompt(departments);
     const result = await this.llmProvider.classify(
       conversationHistory,
-      this.departments,
-      DEPARTMENT_PROMPT
+      departmentNames,
+      prompt
     );
 
-    const classifiedDepartment = this.parseDepartment(result.content);
-    const departmentResult = await this.findDepartmentByName(classifiedDepartment);
+    const classifiedDepartment = this.parseDepartment(result.content, departmentNames);
+    const departmentResult = await this.findDepartmentByName(classifiedDepartment, companyId);
 
     let confidence = 0.5;
     if (result.usage) {
@@ -79,19 +112,19 @@ class TriageService {
     };
   }
 
-  parseDepartment(response) {
+  parseDepartment(response, departmentNames) {
     const cleaned = response.trim();
-    for (const dept of this.departments) {
+    for (const dept of departmentNames) {
       if (cleaned.toLowerCase().includes(dept.toLowerCase())) {
         return dept;
       }
     }
-    return 'Comercial';
+    return departmentNames[0] || 'Comercial';
   }
 
-  async findDepartmentByName(name) {
+  async findDepartmentByName(name, companyId) {
     if (!this.departmentRepository) return null;
-    const result = await this.departmentRepository.findByName(name);
+    const result = await this.departmentRepository.findByName(name, companyId);
     return result.rows[0] || null;
   }
 }

@@ -1,5 +1,33 @@
+import { useAuthStore } from '../contexts/AuthContext';
+
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
-const WS_URL = import.meta.env.VITE_WS_URL || '';
+
+function getToken() {
+  return useAuthStore.getState().token;
+}
+
+async function refreshToken() {
+  const { refreshToken: rt } = useAuthStore.getState();
+  if (!rt) return false;
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: rt })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      useAuthStore.setState({
+        token: data.data.token,
+        refreshToken: data.data.refresh_token
+      });
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
 
 class ApiClient {
   constructor() {
@@ -7,10 +35,12 @@ class ApiClient {
   }
 
   async request(endpoint, options = {}) {
+    const token = getToken();
     const url = `${this.baseUrl}${endpoint}`;
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers
       },
       ...options
@@ -20,7 +50,17 @@ class ApiClient {
       config.body = JSON.stringify(config.body);
     }
 
-    const response = await fetch(url, config);
+    let response = await fetch(url, config);
+
+    if (response.status === 401 && token) {
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        const newToken = getToken();
+        config.headers.Authorization = `Bearer ${newToken}`;
+        response = await fetch(url, config);
+      }
+    }
+
     const data = await response.json();
 
     if (!response.ok) {

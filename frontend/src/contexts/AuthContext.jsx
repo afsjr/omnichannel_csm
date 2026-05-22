@@ -46,6 +46,7 @@ export const useAuthStore = create(
     (set) => ({
       user: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -53,7 +54,7 @@ export const useAuthStore = create(
       login: async (email, password) => {
         set({ isLoading: true, error: null })
         try {
-          const response = await fetch('/api/auth/login', {
+          const response = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
@@ -64,6 +65,7 @@ export const useAuthStore = create(
             set({
               user: data.data.user,
               token: data.data.token,
+              refreshToken: data.data.refresh_token,
               isAuthenticated: true,
               isLoading: false,
               error: null
@@ -79,8 +81,21 @@ export const useAuthStore = create(
         }
       },
 
-      logout: () => {
-        set({ user: null, token: null, isAuthenticated: false, error: null })
+      logout: async () => {
+        try {
+          const { token, refreshToken } = useAuthStore.getState()
+          await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ refresh_token: refreshToken })
+          })
+        } catch {
+          // Ignore network errors on logout
+        }
+        set({ user: null, token: null, refreshToken: null, isAuthenticated: false, error: null })
       },
 
       clearError: () => set({ error: null }),
@@ -173,6 +188,7 @@ export const useAuthStore = create(
       partialize: (state) => ({
         user: state.user,
         token: state.token,
+        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated
       })
     }

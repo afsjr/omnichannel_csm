@@ -112,6 +112,12 @@ class InstanceService {
       throw Object.assign(new Error('Instância já desconectada'), { statusCode: 409 });
     }
 
+    try {
+      await this.evolutionProvider.disconnect(instance.instance_name);
+    } catch (error) {
+      console.error('Evolution API disconnect error (ignoring):', error.message);
+    }
+
     await this.instanceRepository.updateStatus(instanceId, 'offline', null, null);
 
     return { status: 'offline' };
