@@ -351,20 +351,80 @@ async function disconnectInstance(req, res) {
 }
 
 /**
+ * Configura webhook na Evolution API para esta instância
+ * POST /instances/setup-webhook
+ */
+async function setupWebhook(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+  }
+
+  const evolutionUrl = process.env.EVOLUTION_API_URL;
+  const evolutionKey = process.env.EVOLUTION_API_KEY;
+  const instanceName = process.env.EVOLUTION_INSTANCE;
+
+  if (!evolutionUrl || !evolutionKey || !instanceName) {
+    return res.status(400).json({
+      ok: false,
+      error: 'EVOLUTION_API_URL, EVOLUTION_API_KEY e EVOLUTION_INSTANCE são obrigatórios'
+    });
+  }
+
+  const webhookUrl = req.body?.url || `${req.protocol}://${req.hostname}/api/webhook-handler`;
+  const base = evolutionUrl.replace(/\/api$/, '');
+
+  try {
+    const response = await fetch(`${base}/webhook/set/${instanceName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
+      body: JSON.stringify({
+        webhook: {
+          enabled: true,
+          url: webhookUrl,
+          webhookByEvents: false,
+          events: ['MESSAGES_UPSERT', 'SEND_MESSAGE', 'CONNECTION_UPDATE']
+        }
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Falha ao configurar webhook na Evolution API',
+        details: data
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Webhook configurado com sucesso',
+      data: { webhookUrl, instance: instanceName, response: data }
+    });
+  } catch (error) {
+    console.error('Setup webhook error:', error);
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+}
+
+/**
  * Rota principal - distribui para os handlers
  */
 module.exports = async (req, res) => {
   const { url } = req;
 
   try {
-    // Lista instâncias
-    if (url === '/instances' || url.startsWith('/instances?')) {
-      return listInstances(req, res);
+    // Configurar webhook
+    if (url === '/instances/setup-webhook') {
+      return setupWebhook(req, res);
     }
 
-    // Cria instância
-    if (url === '/instances' && req.method === 'POST') {
-      return createInstance(req, res);
+    // Lista instâncias
+    if (url === '/instances' || url.startsWith('/instances?')) {
+      if (req.method === 'GET') return listInstances(req, res);
+      if (req.method === 'POST') return createInstance(req, res);
+      return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
     }
 
     // Conectar instância

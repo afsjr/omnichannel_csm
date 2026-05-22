@@ -21,6 +21,45 @@ function requireAuth(req, res) {
 
 const supabase = () => getSupabase();
 
+const EVO_URL = process.env.EVOLUTION_API_URL;
+const EVO_KEY = process.env.EVOLUTION_API_KEY;
+const EVO_INSTANCE = process.env.EVOLUTION_INSTANCE;
+
+function formatPhone(phone) {
+  const cleaned = (phone || '').replace(/\D/g, '');
+  return cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
+}
+
+async function sendViaEvolution(phone, message) {
+  if (!EVO_URL || !EVO_KEY) return { simulated: true };
+  const base = EVO_URL.replace(/\/api$/, '');
+  const url = `${base}/message/sendText/${EVO_INSTANCE}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': EVO_KEY },
+    body: JSON.stringify({ number: formatPhone(phone), text: message })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`Evolution API: ${res.status} ${JSON.stringify(data)}`);
+  return data;
+}
+
+async function sendMediaViaEvolution(phone, mediatype, mediaUrl, caption) {
+  if (!EVO_URL || !EVO_KEY) return { simulated: true };
+  const base = EVO_URL.replace(/\/api$/, '');
+  const endpoint = { image: 'sendImage', video: 'sendVideo', audio: 'sendAudio', document: 'sendDocument' }[mediatype] || 'sendMedia';
+  const body = { number: formatPhone(phone), caption: caption || '' };
+  if (mediaUrl.startsWith('http')) body.mediaUrl = mediaUrl; else body.media = mediaUrl;
+  const res = await fetch(`${base}/message/${endpoint}/${EVO_INSTANCE}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': EVO_KEY },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`Evolution API (mídia): ${res.status} ${JSON.stringify(data)}`);
+  return data;
+}
+
 async function sendMessage(req, res) {
   const user = requireAuth(req, res);
   if (!user) return;
@@ -32,10 +71,17 @@ async function sendMessage(req, res) {
     const db = supabase();
     const { data: conv } = await db.from('conversations').select('*, contacts!inner(phone)').eq('id', conversationId).single();
     if (!conv) return res.status(404).json({ ok: false, error: 'Conversa não encontrada' });
+    let status = 'sent';
+    if (conv.contacts?.phone && EVO_URL) {
+      try { await sendViaEvolution(conv.contacts.phone, content); } catch (e) {
+        console.error('Evolution send error:', e.message);
+        status = 'pending';
+      }
+    }
     const { data: msg, error } = await db.from('messages').insert({
       conversation_id: conversationId, content,
       sender_type: 'user', sender_id: senderId || user.userId,
-      direction: 'outgoing', status: 'sent'
+      direction: 'outgoing', status
     }).select().single();
     if (error) throw error;
     await db.from('conversations').update({ last_message: content, updated_at: new Date().toISOString() }).eq('id', conversationId);
@@ -191,10 +237,19 @@ async function sendMedia(req, res) {
   if (!validTypes.includes(type)) return res.status(400).json({ ok: false, error: `type deve ser: ${validTypes.join(', ')}` });
   try {
     const db = supabase();
+    const { data: conv } = await db.from('conversations').select('*, contacts!inner(phone)').eq('id', Number(conversationId)).single();
+    if (!conv) return res.status(404).json({ ok: false, error: 'Conversa não encontrada' });
+    let status = 'sent';
+    if (conv.contacts?.phone && EVO_URL) {
+      try { await sendMediaViaEvolution(conv.contacts.phone, type, url, caption); } catch (e) {
+        console.error('Evolution sendMedia error:', e.message);
+        status = 'pending';
+      }
+    }
     const { data: msg, error } = await db.from('messages').insert({
       conversation_id: Number(conversationId), content: caption || `[${type}]`,
       sender_type: 'user', sender_id: senderId || user.userId,
-      direction: 'outgoing', status: 'sent',
+      direction: 'outgoing', status,
       metadata: { media_type: type, media_url: url, caption: caption || '' }
     }).select().single();
     if (error) throw error;
