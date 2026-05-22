@@ -68,7 +68,7 @@ async function getQueue(req, res) {
     if (companyId) q = q.eq('company_id', Number(companyId));
     if (departmentId) q = q.eq('department_id', Number(departmentId));
     const { data } = await q.order('created_at', { ascending: true });
-    return res.json({ ok: true, data });
+    return res.json({ ok: true, data: data || [] });
   } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
 }
 
@@ -80,7 +80,7 @@ async function getMyConversations(req, res) {
     let q = db.from('conversations').select('*, contacts(*)').eq('assigned_to', Number(userId || user.userId));
     if (companyId) q = q.eq('company_id', Number(companyId));
     const { data } = await q.order('updated_at', { ascending: false });
-    return res.json({ ok: true, data });
+    return res.json({ ok: true, data: data || [] });
   } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
 }
 
@@ -152,7 +152,7 @@ async function getResolved(req, res) {
     let q = db.from('conversations').select('*, contacts(*)').eq('status', 'resolved');
     if (companyId) q = q.eq('company_id', Number(companyId));
     const { data } = await q.order('updated_at', { ascending: false }).limit(Number(limit));
-    return res.json({ ok: true, data });
+    return res.json({ ok: true, data: data || [] });
   } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
 }
 

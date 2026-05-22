@@ -36,7 +36,7 @@ export const useChatStore = create((set, get) => ({
     const res = await apiFetch(url)
     const data = await res.json()
     if (data.ok) {
-      set({ queue: data.data, isLoading: false })
+      set({ queue: data.data || [], isLoading: false })
     } else {
       set({ error: data.error, isLoading: false })
     }
@@ -47,7 +47,7 @@ export const useChatStore = create((set, get) => ({
     const res = await apiFetch(url)
     const data = await res.json()
     if (data.ok) {
-      set({ myConversations: data.data })
+      set({ myConversations: data.data || [] })
     }
   },
 
@@ -56,7 +56,7 @@ export const useChatStore = create((set, get) => ({
     const res = await apiFetch(url)
     const data = await res.json()
     if (data.ok) {
-      set({ resolvedConversations: data.data })
+      set({ resolvedConversations: data.data || [] })
     }
   },
 
@@ -67,7 +67,7 @@ export const useChatStore = create((set, get) => ({
     if (data.ok) {
       set({ 
         activeConversation: data.data.conversation,
-        messages: data.data.messages,
+        messages: data.data.messages || [],
         draft: data.data.conversation.ai_draft,
         draftConfidence: data.data.conversation.ai_confidence,
         isLoading: false
@@ -215,7 +215,7 @@ export const useChatStore = create((set, get) => ({
     const res = await apiFetch(url)
     const data = await res.json()
     if (data.ok) {
-      set({ contacts: data.data })
+      set({ contacts: data.data || [] })
     }
   },
 
