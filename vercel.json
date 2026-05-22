@@ -6,9 +6,14 @@
     "silent": true
   },
   "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/api/auth/:action*", "destination": "/api/auth" },
+    { "source": "/api/messages/:action*", "destination": "/api/messages" },
+    { "source": "/api/contacts/:action*", "destination": "/api/contacts" },
+    { "source": "/api/ai/:action*", "destination": "/api/ai" },
+    { "source": "/api/departments/:action*", "destination": "/api/departments" },
+    { "source": "/api/dashboard/:action*", "destination": "/api/dashboard" },
+    { "source": "/api/instances/:action*", "destination": "/api/instances" },
+    { "source": "/api/users/:action*", "destination": "/api/users" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
