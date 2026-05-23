@@ -149,6 +149,18 @@ async function sendMedia(req, res) {
   } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
 }
 
+async function deleteMessage(req, res) {
+  const user = requireAuth(req, res); if (!user) return;
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ ok: false, error: 'id obrigatório' });
+  try {
+    const db = getSupabase();
+    const { error } = await db.from('messages').delete().eq('id', Number(id));
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
+}
+
 module.exports = async (req, res) => {
   const action = getAction(req, BASE);
 
@@ -160,7 +172,6 @@ module.exports = async (req, res) => {
   switch (mainAction) {
     case 'send': return sendMessage(req, res);
     case 'conversation': 
-      // If the URL is /conversation/15, set req.query.id = 15
       req.query = req.query || {};
       if (parts[1]) req.query.id = parts[1];
       return getConversation(req, res);
@@ -173,6 +184,7 @@ module.exports = async (req, res) => {
     case 'requeue': return requeueConversation(req, res);
     case 'resolved': return getResolved(req, res);
     case 'send-media': return sendMedia(req, res);
+    case 'delete': return deleteMessage(req, res);
     default: return res.status(404).json({ ok: false, error: `Endpoint /api/messages/${action} não encontrado` });
   }
 };

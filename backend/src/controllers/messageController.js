@@ -213,6 +213,19 @@ async function getResolved(req, reply) {
   return reply.send({ ok: true, data: conversations });
 }
 
+async function deleteMessage(req, reply) {
+  const { id } = req.params || {};
+  if (!id) return reply.code(400).send({ ok: false, error: 'id obrigatório' });
+
+  try {
+    const { message } = req.server.container.repositories;
+    await message.delete(Number(id));
+    return reply.send({ ok: true });
+  } catch (error) {
+    return reply.code(500).send({ ok: false, error: error.message });
+  }
+}
+
 async function sendMedia(req, reply) {
   const { conversationId, type, url, caption, senderId } = req.body || {};
   const { chat } = req.server.container.services;
@@ -256,5 +269,6 @@ module.exports = {
   resolveConversation,
   reopenConversation,
   requeueConversation,
-  getResolved
+  getResolved,
+  deleteMessage
 };

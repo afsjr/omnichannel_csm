@@ -155,6 +155,7 @@ async function routes(fastify) {
   fastify.post('/messages/requeue', { preHandler: [authController.authMiddleware] }, messageController.requeueConversation);
   fastify.get('/messages/resolved', { preHandler: [authController.authMiddleware] }, messageController.getResolved);
   fastify.post('/messages/send-media', { preHandler: [authController.authMiddleware] }, messageController.sendMedia);
+  fastify.delete('/messages/:id', { preHandler: [authController.authMiddleware] }, messageController.deleteMessage);
 
   // AI
   fastify.post('/ai/process', { preHandler: [authController.authMiddleware] }, aiController.processWithAI);

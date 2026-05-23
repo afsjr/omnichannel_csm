@@ -17,6 +17,7 @@ export default function ChatWindow() {
     updateDraft,
     refreshMessages,
     resolveConversation,
+    deleteMessage,
     isLoading 
   } = useChatStore()
   const [input, setInput] = useState('')
@@ -232,6 +233,19 @@ export default function ChatWindow() {
                   <div className="message-meta">
                     {isAIMessage ? <span className="ai-label">Análise IA</span> : <span className="time">{formatTime(msg.created_at)}</span>}
                     {msg.direction === 'outgoing' && !isAIMessage && <span className="status">{msg.status}</span>}
+                    {!isAIMessage && (
+                      <button
+                        className="btn-delete-msg"
+                        onClick={() => {
+                          if (confirm('Excluir esta mensagem?')) {
+                            deleteMessage(msg.id)
+                          }
+                        }}
+                        title="Excluir mensagem"
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </div>
                   {isMediaMessage(msg) && (
                     <div className="media-preview">

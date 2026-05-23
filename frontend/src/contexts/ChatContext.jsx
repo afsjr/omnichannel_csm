@@ -300,6 +300,18 @@ export const useChatStore = create((set, get) => ({
     return data
   },
 
+  deleteMessage: async (messageId) => {
+    const res = await apiFetch('/messages/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id: messageId })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      set((s) => ({ messages: s.messages.filter(m => m.id !== messageId) }))
+    }
+    return data
+  },
+
   addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
   clearError: () => set({ error: null })
 }))
