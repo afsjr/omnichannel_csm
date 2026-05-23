@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore, ROLES } from '../contexts/AuthContext'
 import { useChatStore } from '../contexts/ChatContext'
+import { useToastStore } from '../stores/toastStore'
 import ChatWindow from '../components/ChatWindow'
 import ContactsModal from '../components/ContactsModal'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL || ''
 const API_PREFIX = '/api'
 
 export default function Dashboard() {
@@ -29,8 +30,9 @@ export default function Dashboard() {
   const [showUserManagement, setShowUserManagement] = useState(false)
   const [users, setUsers] = useState([])
   const [usersLoading, setUsersLoading] = useState(false)
+  const [departments, setDepartments] = useState([])
 
-  const { hasPermission, isAdmin, isMaster } = useAuthStore()
+  const { hasPermission, isAdmin, isMaster, token } = useAuthStore()
 
   useEffect(() => {
     fetchQueue(1, filterDept)
@@ -53,6 +55,15 @@ export default function Dashboard() {
     }
   }, [showStats])
 
+  useEffect(() => {
+    fetch(`${API_URL}${API_PREFIX}/departments?companyId=1`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+      .then(r => r.json())
+      .then(d => { if (d.ok) setDepartments(d.data || []); })
+      .catch(() => {})
+  }, [token])
+
   const fetchStats = async () => {
     try {
       const res = await fetch(`${API_URL}${API_PREFIX}/dashboard/full?companyId=1`)
@@ -60,10 +71,10 @@ export default function Dashboard() {
       if (data.ok) {
         setStats(data.data)
       } else {
-        console.error('Stats API error:', data.error)
+        useToastStore.getState().addToast('Erro ao carregar estatísticas', 'error')
       }
     } catch (err) {
-      console.error('Failed to fetch stats:', err)
+      useToastStore.getState().addToast('Erro ao carregar estatísticas', 'error')
     }
   }
 
@@ -267,10 +278,9 @@ export default function Dashboard() {
                   className="dept-filter"
                 >
                   <option value="">Todos</option>
-                  <option value="1">Comercial</option>
-                  <option value="2">Financeiro</option>
-                  <option value="3">Secretaria</option>
-                  <option value="4">Acadêmico</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
                 </select>
               </h3>
               <div className="conv-list">

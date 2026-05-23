@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useToastStore } from '../stores/toastStore'
 
 const API = '/api'
 
@@ -136,6 +137,7 @@ export const useChatStore = create((set, get) => ({
       await get().fetchConversation(conversationId)
     } catch (error) {
       console.error('processWithAI error:', error)
+      useToastStore.getState().addToast('Erro ao processar IA: ' + error.message, 'error')
       set({ isAILoading: false, error: error.message })
     }
   },
@@ -154,6 +156,7 @@ export const useChatStore = create((set, get) => ({
     })
     const data = await res.json()
     if (data.ok) {
+      useToastStore.getState().addToast('Conversa atribuída com sucesso', 'success')
       const { queue, myConversations } = get()
       const conv = queue.find(c => c.id === conversationId)
       if (conv) {
@@ -187,6 +190,8 @@ export const useChatStore = create((set, get) => ({
     const data = await res.json()
     if (data.ok) {
       set((s) => ({ messages: [...s.messages, data.message] }))
+    } else {
+      useToastStore.getState().addToast(data.error || 'Erro ao enviar mensagem', 'error')
     }
     return data
   },
@@ -212,6 +217,7 @@ export const useChatStore = create((set, get) => ({
     })
     const data = await res.json()
     if (data.ok) {
+      useToastStore.getState().addToast('Conversa resolvida', 'success')
       const conv = get().myConversations.find(c => c.id === conversationId)
       set((s) => ({
         myConversations: s.myConversations.filter(c => c.id !== conversationId),
@@ -231,6 +237,7 @@ export const useChatStore = create((set, get) => ({
     })
     const data = await res.json()
     if (data.ok) {
+      useToastStore.getState().addToast('Conversa reaberta com sucesso', 'success')
       const conv = get().resolvedConversations.find(c => c.id === conversationId)
       set((s) => ({
         resolvedConversations: s.resolvedConversations.filter(c => c.id !== conversationId),
@@ -257,6 +264,9 @@ export const useChatStore = create((set, get) => ({
     const data = await res.json()
     if (data.ok) {
       set((s) => ({ contacts: [data.data, ...s.contacts] }))
+      useToastStore.getState().addToast('Contato criado', 'success')
+    } else {
+      useToastStore.getState().addToast(data.error || 'Erro ao criar contato', 'error')
     }
     return data
   },
@@ -268,6 +278,7 @@ export const useChatStore = create((set, get) => ({
     })
     const data = await res.json()
     if (data.ok) {
+      useToastStore.getState().addToast('Conversa iniciada', 'success')
       const conversation = data.data
       set((s) => ({
         queue: [conversation, ...s.queue],
@@ -296,6 +307,8 @@ export const useChatStore = create((set, get) => ({
     const data = await res.json()
     if (data.ok) {
       set((s) => ({ messages: [...s.messages, data.message] }))
+    } else {
+      useToastStore.getState().addToast(data.error || 'Erro ao enviar mídia', 'error')
     }
     return data
   },
@@ -307,7 +320,10 @@ export const useChatStore = create((set, get) => ({
     })
     const data = await res.json()
     if (data.ok) {
+      useToastStore.getState().addToast('Mensagem apagada', 'success')
       set((s) => ({ messages: s.messages.filter(m => m.id !== messageId) }))
+    } else {
+      useToastStore.getState().addToast(data.error || 'Erro ao apagar mensagem', 'error')
     }
     return data
   },
