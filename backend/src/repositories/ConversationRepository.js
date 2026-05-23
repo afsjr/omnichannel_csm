@@ -22,15 +22,21 @@ class ConversationRepository extends SupabaseBaseRepository {
     };
   }
 
-  async findByContactAndStatus(companyId, contactId, channel = 'whatsapp', status = 'open') {
-    const { data, error } = await this.client
+  async findByContactAndStatus(companyId, contactId, channel = 'whatsapp', status = ['pending', 'in_progress']) {
+    let query = this.client
       .from('conversations')
       .select('*')
       .eq('company_id', companyId)
       .eq('contact_id', contactId)
-      .eq('channel', channel)
-      .eq('status', status)
-      .limit(1);
+      .eq('channel', channel);
+
+    if (Array.isArray(status)) {
+      query = query.in('status', status);
+    } else {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query.limit(1);
 
     if (error) throw error;
     return { rows: data || [], rowCount: data?.length || 0 };

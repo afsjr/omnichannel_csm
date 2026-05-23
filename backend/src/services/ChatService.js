@@ -17,7 +17,7 @@ class ChatService {
     const contact = await this.contactRepository.findOrCreate(companyId, contactName, phone);
 
     let conversationResult = await this.conversationRepository.findByContactAndStatus(
-      companyId, contact.id, channel, 'open'
+      companyId, contact.id, channel, ['pending', 'in_progress']
     );
 
     let conversation;
@@ -98,7 +98,7 @@ class ChatService {
     const contact = await this.contactRepository.findOrCreate(companyId, contactName, phone);
 
     const existingConv = await this.conversationRepository.findByContactAndStatus(
-      companyId, contact.id, channel, 'open'
+      companyId, contact.id, channel, ['pending', 'in_progress']
     );
 
     let conversation;
