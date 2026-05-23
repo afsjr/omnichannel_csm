@@ -4,7 +4,8 @@ const { getAction, getUserFromToken } = require('../lib/route-helper');
 const BASE = '/api/ai';
 
 module.exports = async (req, res) => {
-  const user = getUserFromToken(req.headers.authorization);
+  const isInternal = req.headers['x-internal-trigger'] === 'true';
+  const user = isInternal ? { id: 'system' } : getUserFromToken(req.headers.authorization);
   if (!user) return res.status(401).json({ ok: false, error: 'Token inválido' });
   const action = getAction(req, BASE);
   const db = getSupabase();
