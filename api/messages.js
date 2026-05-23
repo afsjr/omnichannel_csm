@@ -186,6 +186,7 @@ module.exports = async (req, res) => {
     case 'send': return sendMessage(req, res);
     case 'conversation': 
       // If the URL is /conversation/15, set req.query.id = 15
+      req.query = req.query || {};
       if (parts[1]) req.query.id = parts[1];
       return getConversation(req, res);
     case 'queue': return getQueue(req, res);

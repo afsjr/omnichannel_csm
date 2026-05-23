@@ -291,7 +291,7 @@ class ChatService {
     const convResult = await this.conversationRepository.findById(conversationId);
     if (convResult.rowCount === 0) return null;
 
-    const messagesResult = await this.messageRepository.getConversationHistory(conversationId);
+    const messagesResult = await this.messageRepository.findByConversation(conversationId);
 
     return {
       conversation: convResult.rows[0],

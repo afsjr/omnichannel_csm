@@ -9,7 +9,7 @@ class ConversationRepository extends SupabaseBaseRepository {
   async findById(id) {
     const { data, error } = await this.client
       .from('conversations')
-      .select('*')
+      .select('*, contacts(*)')
       .eq('id', id)
       .single();
 
@@ -39,7 +39,7 @@ class ConversationRepository extends SupabaseBaseRepository {
   async findByCompany(companyId, filters = {}) {
     let query = this.client
       .from('conversations')
-      .select('*')
+      .select('*, contacts(name, phone), departments(name), users(name)')
       .eq('company_id', companyId);
 
     if (filters.status) {
