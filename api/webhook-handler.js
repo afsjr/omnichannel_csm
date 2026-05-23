@@ -7,9 +7,16 @@ function normalizePhone(phone) {
 
 function parseEvolutionPayload(payload) {
   let msgObj = payload;
+
+  if (Array.isArray(payload) && payload.length > 0) {
+    payload = payload[0];
+    msgObj = payload;
+  }
   
   if (payload.data) {
-    if (Array.isArray(payload.data.messages) && payload.data.messages.length > 0) {
+    if (Array.isArray(payload.data) && payload.data.length > 0) {
+      msgObj = payload.data[0];
+    } else if (Array.isArray(payload.data.messages) && payload.data.messages.length > 0) {
       msgObj = { ...payload.data.messages[0], pushName: payload.data.pushName };
     } else if (payload.data.message && payload.data.message.key) { // v1
       msgObj = payload.data.message;
