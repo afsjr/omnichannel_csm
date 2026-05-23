@@ -1,4 +1,4 @@
-const { SupabaseBaseRepository } = require('../database/Database');
+const SupabaseBaseRepository = require('./SupabaseBaseRepository');
 
 class ConversationRepository extends SupabaseBaseRepository {
   constructor(database) {
@@ -84,25 +84,16 @@ class ConversationRepository extends SupabaseBaseRepository {
   }
 
   async create(data) {
-    const insertData = {
-      company_id: data.companyId,
-      contact_id: data.contactId,
-      department_id: data.departmentId || null,
-      assigned_to: data.assignedTo || null,
-      connection_id: data.connectionId || null,
+    return super.create({
+      companyId: data.companyId,
+      contactId: data.contactId,
+      departmentId: data.departmentId || null,
+      assignedTo: data.assignedTo || null,
+      connectionId: data.connectionId || null,
       channel: data.channel || 'whatsapp',
       status: data.status || 'open',
       priority: data.priority || 0
-    };
-
-    const { data: result, error } = await this.client
-      .from('conversations')
-      .insert(insertData)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return { rows: [result], rowCount: 1 };
+    });
   }
 
   async update(id, data) {

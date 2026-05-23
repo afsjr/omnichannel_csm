@@ -1,33 +1,8 @@
 const { getSupabase } = require('../lib/db');
 const { getAction, requireAuth } = require('../lib/route-helper');
+const { sendMessageToEvolution, sendMediaToEvolution } = require('../lib/evolution');
 
 const BASE = '/api/messages';
-const EVO_URL = process.env.EVOLUTION_API_URL;
-const EVO_KEY = process.env.EVOLUTION_API_KEY;
-const EVO_INSTANCE = process.env.EVOLUTION_INSTANCE;
-
-function fmtPhone(p) { const c = (p||'').replace(/\D/g,''); return c.startsWith('55')?c:`55${c}`; }
-
-async function evoSend(phone, text) {
-  if (!EVO_URL||!EVO_KEY) return {simulated:true};
-  const base = EVO_URL.replace(/\/api$/,'');
-  const r = await fetch(`${base}/message/sendText/${EVO_INSTANCE}`, {method:'POST',headers:{'Content-Type':'application/json','apikey':EVO_KEY},body:JSON.stringify({number:fmtPhone(phone),text})});
-  const d = await r.json().catch(()=>({}));
-  if (!r.ok) throw new Error(`Evolution: ${r.status} ${JSON.stringify(d)}`);
-  return d;
-}
-
-async function evoMedia(phone, type, url, cap) {
-  if (!EVO_URL||!EVO_KEY) return {simulated:true};
-  const base = EVO_URL.replace(/\/api$/,'');
-  const ep = {image:'sendImage',video:'sendVideo',audio:'sendAudio',document:'sendDocument'}[type]||'sendMedia';
-  const b = {number:fmtPhone(phone),caption:cap||''};
-  if (url.startsWith('http')) b.mediaUrl=url; else b.media=url;
-  const r = await fetch(`${base}/message/${ep}/${EVO_INSTANCE}`,{method:'POST',headers:{'Content-Type':'application/json','apikey':EVO_KEY},body:JSON.stringify(b)});
-  const d = await r.json().catch(()=>({}));
-  if (!r.ok) throw new Error(`Evolution (mídia): ${r.status} ${JSON.stringify(d)}`);
-  return d;
-}
 
 async function sendMessage(req, res) {
   const user = requireAuth(req, res); if (!user) return;
@@ -38,7 +13,7 @@ async function sendMessage(req, res) {
     const { data: conv } = await db.from('conversations').select('*, contacts!inner(phone)').eq('id', conversationId).single();
     if (!conv) return res.status(404).json({ ok: false, error: 'Conversa não encontrada' });
     let status = 'sent';
-    if (conv.contacts?.phone && EVO_URL) try { await evoSend(conv.contacts.phone, content); } catch(e) { console.error('Evolution:',e.message); status='pending'; }
+    if (conv.contacts?.phone) try { await sendMessageToEvolution({ number: conv.contacts.phone, message: content }); } catch(e) { console.error('Evolution:',e.message); status='pending'; }
     const { data: msg, error } = await db.from('messages').insert({ conversation_id: conversationId, content, sender_type: 'user', sender_id: senderId || user.userId, direction: 'outgoing', status }).select().single();
     if (error) throw error;
     await db.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversationId);
@@ -166,7 +141,7 @@ async function sendMedia(req, res) {
     const { data: conv } = await db.from('conversations').select('*, contacts!inner(phone)').eq('id', Number(conversationId)).single();
     if (!conv) return res.status(404).json({ ok: false, error: 'Conversa não encontrada' });
     let status = 'sent';
-    if (conv.contacts?.phone && EVO_URL) try { await evoMedia(conv.contacts.phone, type, url, caption); } catch(e) { console.error('Evolution:',e.message); status='pending'; }
+    if (conv.contacts?.phone) try { await sendMediaToEvolution({ number: conv.contacts.phone, media: url, caption, mediatype: type }); } catch(e) { console.error('Evolution:',e.message); status='pending'; }
     const { data: msg, error } = await db.from('messages').insert({ conversation_id: Number(conversationId), content: caption || `[${type}]`, sender_type: 'user', sender_id: senderId || user.userId, direction: 'outgoing', status, metadata: { media_type: type, media_url: url, caption: caption || '' } }).select().single();
     if (error) throw error;
     await db.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', Number(conversationId));

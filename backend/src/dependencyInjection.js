@@ -1,4 +1,4 @@
-const { SupabaseDatabase } = require('./database/Database');
+const SupabaseDatabase = require('./database/Database');
 
 const UserRepository = require('./repositories/UserRepository');
 const ContactRepository = require('./repositories/ContactRepository');

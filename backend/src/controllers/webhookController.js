@@ -1,3 +1,5 @@
+const ws = require('../lib/websocket');
+
 function parseWebhookPayload(payload) {
   let data = payload;
 
@@ -114,35 +116,28 @@ async function receiveWebhook(req, reply) {
 
   const result = await chatService.processIncomingMessage(enrichedPayload);
 
-  if (req.server.io) {
-    req.server.io.to(`conversation:${result.conversation.id}`)
-      .emit('new_message', {
-        conversationId: result.conversation.id,
-        message: result.message,
-        contact: result.contact
-      });
-    const deptId = result.conversation.department_id;
-    if (deptId) {
-      req.server.io.to(`department:${deptId}`)
-        .emit('queue_updated', { departmentId: deptId });
-    }
+  ws.toConversation(req, result.conversation.id, 'new_message', {
+    conversationId: result.conversation.id,
+    message: result.message,
+    contact: result.contact
+  });
+  const deptId = result.conversation.department_id;
+  if (deptId) {
+    ws.toDepartment(req, deptId, 'queue_updated', { departmentId: deptId });
   }
 
   setImmediate(async () => {
     try {
       await req.server.container.ai.aiProcessingService.processAll();
 
-      if (req.server.io) {
-        const updatedConv = await chatService.getConversationWithMessages(result.conversation.id);
-        if (updatedConv) {
-          req.server.io.to(`conversation:${result.conversation.id}`)
-            .emit('ai_processing_complete', {
-              conversationId: result.conversation.id,
-              department: updatedConv.conversation.department_id,
-              draft: updatedConv.conversation.ai_draft,
-              confidence: updatedConv.conversation.ai_confidence
-            });
-        }
+      const updatedConv = await chatService.getConversationWithMessages(result.conversation.id);
+      if (updatedConv) {
+        ws.toConversation(req, result.conversation.id, 'ai_processing_complete', {
+          conversationId: result.conversation.id,
+          department: updatedConv.conversation.department_id,
+          draft: updatedConv.conversation.ai_draft,
+          confidence: updatedConv.conversation.ai_confidence
+        });
       }
     } catch (error) {
       console.error('AI processing error:', error);

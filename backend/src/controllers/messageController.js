@@ -1,3 +1,5 @@
+const ws = require('../lib/websocket');
+
 async function simulateWebhook(req, reply) {
   const { chat } = req.server.container.services;
   const { contact, message } = req.body || {};
@@ -14,15 +16,11 @@ async function simulateWebhook(req, reply) {
       channel: 'whatsapp'
     });
 
-    if (req.server.io) {
-      req.server.io.emit('new_message', {
-        conversationId: result.conversation.id,
-        message: result.message
-      });
-
-      req.server.io.to('department:queue')
-        .emit('new_conversation', result.conversation);
-    }
+    ws.broadcast(req, 'new_message', {
+      conversationId: result.conversation.id,
+      message: result.message
+    });
+    ws.toDepartmentQueue(req, 'new_conversation', result.conversation);
 
     return reply.send({
       ok: true,
@@ -57,9 +55,7 @@ async function simulateBatch(req, reply) {
     }
   }
 
-  if (req.server.io) {
-    req.server.io.emit('batch_complete', { count: results.length });
-  }
+  ws.broadcast(req, 'batch_complete', { count: results.length });
 
   return reply.send({ ok: true, data: results });
 }
@@ -75,10 +71,7 @@ async function sendMessage(req, reply) {
   try {
     const message = await chat.sendMessage(conversationId, content, senderId);
 
-    if (req.server.io) {
-      req.server.io.to(`conversation:${conversationId}`)
-        .emit('message_sent', { conversationId, message });
-    }
+    ws.toConversation(req, conversationId, 'message_sent', { conversationId, message });
 
     return reply.send({ ok: true, message });
   } catch (error) {
@@ -136,10 +129,8 @@ async function assignConversation(req, reply) {
     Number(userId)
   );
 
-  if (req.server.io) {
-    req.server.io.to(`user:${userId}`).emit('conversation_assigned', conversation);
-    req.server.io.to('department:queue').emit('conversation_updated', conversation);
-  }
+  ws.toUser(req, userId, 'conversation_assigned', conversation);
+  ws.toDepartmentQueue(req, 'conversation_updated', conversation);
 
   return reply.send({ ok: true, data: conversation });
 }
@@ -158,10 +149,7 @@ async function updateDraft(req, reply) {
     0.85
   );
 
-  if (req.server.io) {
-    req.server.io.to(`conversation:${conversationId}`)
-      .emit('draft_updated', { conversationId, draft, confidence: 0.85 });
-  }
+  ws.toConversation(req, conversationId, 'draft_updated', { conversationId, draft, confidence: 0.85 });
 
   return reply.send({ ok: true, data: conversation });
 }
@@ -176,10 +164,8 @@ async function resolveConversation(req, reply) {
 
   const conversation = await chat.resolveConversation(Number(conversationId));
 
-  if (req.server.io) {
-    req.server.io.to(`user:${conversation.assigned_to}`).emit('conversation_resolved', { conversationId });
-    req.server.io.to('department:queue').emit('conversation_updated', conversation);
-  }
+  ws.toUser(req, conversation.assigned_to, 'conversation_resolved', { conversationId });
+  ws.toDepartmentQueue(req, 'conversation_updated', conversation);
 
   return reply.send({ ok: true, data: conversation });
 }
@@ -194,10 +180,8 @@ async function reopenConversation(req, reply) {
 
   const conversation = await chat.reopenConversation(Number(conversationId));
 
-  if (req.server.io) {
-    req.server.io.to('department:queue').emit('conversation_updated', conversation);
-    req.server.io.to('department:queue').emit('new_conversation', conversation);
-  }
+  ws.toDepartmentQueue(req, 'conversation_updated', conversation);
+  ws.toDepartmentQueue(req, 'new_conversation', conversation);
 
   return reply.send({ ok: true, data: conversation });
 }
@@ -212,9 +196,7 @@ async function requeueConversation(req, reply) {
 
   const conversation = await chat.requeueConversation(Number(conversationId));
 
-  if (req.server.io) {
-    req.server.io.to('department:queue').emit('conversation_updated', conversation);
-  }
+  ws.toDepartmentQueue(req, 'conversation_updated', conversation);
 
   return reply.send({ ok: true, data: conversation });
 }
@@ -253,10 +235,7 @@ async function sendMedia(req, reply) {
       senderId ? Number(senderId) : null
     );
 
-    if (req.server.io) {
-      req.server.io.to(`conversation:${conversationId}`)
-        .emit('message_sent', { conversationId, message });
-    }
+    ws.toConversation(req, conversationId, 'message_sent', { conversationId, message });
 
     return reply.send({ ok: true, message });
   } catch (error) {

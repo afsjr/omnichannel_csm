@@ -1,4 +1,4 @@
-const { SupabaseBaseRepository } = require('../database/Database');
+const SupabaseBaseRepository = require('./SupabaseBaseRepository');
 
 class UserRepository extends SupabaseBaseRepository {
   constructor(database) {
