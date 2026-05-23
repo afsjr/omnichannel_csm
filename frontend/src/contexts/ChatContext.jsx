@@ -6,7 +6,7 @@ async function apiFetch(endpoint, options = {}) {
   const auth = JSON.parse(localStorage.getItem('omnichat-auth') || '{}')
   const state = auth.state || {}
   
-  return fetch(`${API}${endpoint}`, {
+  const res = await fetch(`${API}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -14,6 +14,14 @@ async function apiFetch(endpoint, options = {}) {
       ...options.headers
     }
   })
+
+  if (res.status === 401) {
+    localStorage.removeItem('omnichat-auth')
+    window.location.href = '/login'
+    return res
+  }
+
+  return res
 }
 
 export const useChatStore = create((set, get) => ({
