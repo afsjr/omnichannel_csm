@@ -26,9 +26,22 @@ export default function ChatWindow() {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
+  const prevMessagesLength = useRef(0)
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messages.length > prevMessagesLength.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevMessagesLength.current = messages.length
   }, [messages])
+
+  useEffect(() => {
+    if (!activeConversation?.id) return
+    const interval = setInterval(() => {
+      refreshMessages(activeConversation.id)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [activeConversation?.id])
 
   const handleSend = async () => {
     if (!input.trim() || sending) return
