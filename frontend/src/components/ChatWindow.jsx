@@ -149,7 +149,7 @@ export default function ChatWindow() {
     <div className="chat-window">
       <header className="chat-header">
         <div className="chat-contact">
-          <h2>{activeConversation.contact_name || activeConversation.contact_phone}</h2>
+          <h2>{activeConversation.contacts?.name || activeConversation.contact_name || activeConversation.contacts?.phone || activeConversation.contact_phone || 'Desconhecido'}</h2>
           <span className="channel">{activeConversation.channel}</span>
         </div>
         <div className="chat-actions">

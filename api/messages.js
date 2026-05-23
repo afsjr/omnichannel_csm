@@ -52,7 +52,7 @@ async function getConversation(req, res) {
   if (!id) return res.status(400).json({ ok: false, error: 'id obrigatório' });
   try {
     const db = getSupabase();
-    const { data: conv } = await db.from('conversations').select('*').eq('id', id).single();
+    const { data: conv } = await db.from('conversations').select('*, contacts(*)').eq('id', id).single();
     if (!conv) return res.status(404).json({ ok: false, error: 'Conversa não encontrada' });
     const { data: messages } = await db.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
     return res.json({ ok: true, data: { conversation: conv, messages } });
@@ -177,9 +177,17 @@ async function sendMedia(req, res) {
 module.exports = async (req, res) => {
   const action = getAction(req, BASE);
 
-  switch (action) {
+  if (!action) return res.status(404).json({ ok: false, error: 'Endpoint não encontrado' });
+
+  const parts = action.split('/');
+  const mainAction = parts[0];
+
+  switch (mainAction) {
     case 'send': return sendMessage(req, res);
-    case 'conversation': return getConversation(req, res);
+    case 'conversation': 
+      // If the URL is /conversation/15, set req.query.id = 15
+      if (parts[1]) req.query.id = parts[1];
+      return getConversation(req, res);
     case 'queue': return getQueue(req, res);
     case 'my-conversations': return getMyConversations(req, res);
     case 'assign': return assignConversation(req, res);
