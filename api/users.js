@@ -1,4 +1,4 @@
-const { createClient } = require('@supabase/supabase-js');
+const { getSupabase } = require('../lib/db');
 const { listUsers, setUserActive } = require('../lib/auth');
 const { getAction } = require('../lib/route-helper');
 
@@ -7,7 +7,7 @@ const BASE = '/api/users';
 async function handleListUsers(req, res) {
   const companyId = Number(req.query.company_id || 1);
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+    const supabase = getSupabase();
     const { data: users, error } = await supabase
       .from('users')
       .select('id, name, email, role, company_id, department_id, is_active, is_online, team_leader_id, created_at')
@@ -28,7 +28,7 @@ async function handleUpdateUser(req, res, userId) {
   if (role) updateData.role = role;
   if (department_id !== undefined) updateData.department_id = department_id;
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+    const supabase = getSupabase();
     const { data: user, error } = await supabase
       .from('users').update(updateData).eq('id', Number(userId)).select('id, name, email, role, department_id').single();
     if (error) throw error;
