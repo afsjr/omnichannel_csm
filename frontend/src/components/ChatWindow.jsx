@@ -131,8 +131,11 @@ export default function ChatWindow() {
 
   const formatTime = (date) => {
     if (!date) return ''
-    const d = new Date(date)
-    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    return new Date(date.endsWith('Z') ? date : date + 'Z').toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const formatDate = (date) => {
+    return new Date(date.endsWith('Z') ? date : date + 'Z').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })
   }
 
   const formatDate = (date) => {

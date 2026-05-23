@@ -13,16 +13,9 @@ export default function ConversationList({ conversations, type, emptyMessage }) 
   };
 
   const formatTime = (date) => {
-    const d = new Date(date);
-    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getPriorityLabel = (priority) => {
-    switch (priority) {
-      case 2: return 'Urgente';
-      case 1: return 'Alta';
-      default: return null;
-    }
+    if (!date) return ''
+    return new Date(date.endsWith('Z') ? date : date + 'Z').toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
   };
 
   if (!conversations || conversations.length === 0) {
