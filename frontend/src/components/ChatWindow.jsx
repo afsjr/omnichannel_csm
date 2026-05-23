@@ -135,13 +135,8 @@ export default function ChatWindow() {
   }
 
   const formatDate = (date) => {
-    return new Date(date.endsWith('Z') ? date : date + 'Z').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })
-  }
-
-  const formatDate = (date) => {
     if (!date) return ''
-    const d = new Date(date)
-    return d.toLocaleDateString('pt-BR')
+    return new Date(date.endsWith('Z') ? date : date + 'Z').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })
   }
 
   const isResolved = activeConversation?.status === 'resolved'
