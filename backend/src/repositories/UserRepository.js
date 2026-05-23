@@ -62,6 +62,29 @@ class UserRepository extends SupabaseBaseRepository {
     return { rows: [this.formatUserData(result)], rowCount: 1 };
   }
 
+  async update(id, data) {
+    const updateData = { updated_at: new Date().toISOString() };
+    if (data.name) updateData.name = data.name;
+    if (data.role) updateData.role = data.role;
+    if (data.departmentId !== undefined) updateData.department_id = data.departmentId;
+    if (data.email) updateData.email = data.email;
+    if (data.isActive !== undefined) updateData.is_active = data.isActive;
+
+    const { data: result, error } = await this.client
+      .from('users')
+      .update(updateData)
+      .eq('id', Number(id))
+      .select('*, departments(name)')
+      .single();
+
+    if (error) throw error;
+    return { rows: [this.formatUserData(result)], rowCount: 1 };
+  }
+
+  async setActiveStatus(userId, isActive) {
+    return this.update(userId, { isActive });
+  }
+
   async setOnlineStatus(userId, isOnline) {
     const { data, error } = await this.client
       .from('users')
