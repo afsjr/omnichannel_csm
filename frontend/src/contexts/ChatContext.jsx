@@ -91,15 +91,25 @@ export const useChatStore = create((set, get) => ({
 
   processWithAI: async (conversationId) => {
     set({ isAILoading: true })
-    const res = await apiFetch('/ai/process', {
-      method: 'POST',
-      body: JSON.stringify({ conversationId })
-    })
-    const data = await res.json()
-    
-    if (data.ok) {
-      const { draft, confidence } = data.data.draft
-      const { department, departmentId } = data.data.triage
+    try {
+      const [draftRes, triageRes] = await Promise.all([
+        apiFetch('/ai/draft', {
+          method: 'POST',
+          body: JSON.stringify({ conversationId })
+        }),
+        apiFetch('/ai/triage', {
+          method: 'POST',
+          body: JSON.stringify({ conversationId })
+        })
+      ])
+
+      const draftData = await draftRes.json()
+      const triageData = await triageRes.json()
+
+      const draft = draftData.ok ? draftData.data.draft : null
+      const confidence = draftData.ok ? draftData.data.confidence : null
+      const department = triageData.ok ? triageData.data.department : null
+      const departmentId = triageData.ok ? triageData.data.departmentId : null
       
       set((s) => ({
         draft,
@@ -116,10 +126,10 @@ export const useChatStore = create((set, get) => ({
       }))
       
       await get().fetchConversation(conversationId)
-    } else {
-      set({ error: data.error, isAILoading: false })
+    } catch (error) {
+      console.error('processWithAI error:', error)
+      set({ isAILoading: false, error: error.message })
     }
-    return data
   },
 
   setActiveConversation: (conv) => {
@@ -147,7 +157,7 @@ export const useChatStore = create((set, get) => ({
         get().fetchConversation(conversationId)
         
         setTimeout(() => {
-          get().processWithAI(conversationId)
+          get().processWithAI(conversationId).catch(e => console.error('AI process error:', e))
         }, 500)
       }
     }
