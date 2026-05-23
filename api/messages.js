@@ -41,7 +41,7 @@ async function sendMessage(req, res) {
     if (conv.contacts?.phone && EVO_URL) try { await evoSend(conv.contacts.phone, content); } catch(e) { console.error('Evolution:',e.message); status='pending'; }
     const { data: msg, error } = await db.from('messages').insert({ conversation_id: conversationId, content, sender_type: 'user', sender_id: senderId || user.userId, direction: 'outgoing', status }).select().single();
     if (error) throw error;
-    await db.from('conversations').update({ last_message: content, updated_at: new Date().toISOString() }).eq('id', conversationId);
+    await db.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversationId);
     return res.json({ ok: true, message: msg });
   } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
 }
@@ -79,7 +79,7 @@ async function getMyConversations(req, res) {
     const db = getSupabase();
     let q = db.from('conversations').select('*, contacts(*)').eq('assigned_to', Number(userId || user.userId));
     if (companyId) q = q.eq('company_id', Number(companyId));
-    const { data } = await q.order('updated_at', { ascending: false });
+    const { data } = await q.order('last_message_at', { ascending: false });
     return res.json({ ok: true, data: data || [] });
   } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
 }
@@ -169,7 +169,7 @@ async function sendMedia(req, res) {
     if (conv.contacts?.phone && EVO_URL) try { await evoMedia(conv.contacts.phone, type, url, caption); } catch(e) { console.error('Evolution:',e.message); status='pending'; }
     const { data: msg, error } = await db.from('messages').insert({ conversation_id: Number(conversationId), content: caption || `[${type}]`, sender_type: 'user', sender_id: senderId || user.userId, direction: 'outgoing', status, metadata: { media_type: type, media_url: url, caption: caption || '' } }).select().single();
     if (error) throw error;
-    await db.from('conversations').update({ last_message: caption || `[${type}]`, updated_at: new Date().toISOString() }).eq('id', Number(conversationId));
+    await db.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', Number(conversationId));
     return res.json({ ok: true, message: msg });
   } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
 }
