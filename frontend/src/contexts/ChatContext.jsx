@@ -268,12 +268,13 @@ export const useChatStore = create((set, get) => ({
     })
     const data = await res.json()
     if (data.ok) {
+      const conversation = data.data
       set((s) => ({
-        queue: [data.data.conversation, ...s.queue],
-        activeConversation: data.data.conversation
+        queue: [conversation, ...s.queue],
+        activeConversation: conversation
       }))
-      if (data.data.conversation.id) {
-        get().fetchConversation(data.data.conversation.id)
+      if (conversation.id) {
+        get().fetchConversation(conversation.id)
       }
     }
     return data
