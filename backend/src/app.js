@@ -1,8 +1,10 @@
 require('dotenv').config();
+const path = require('path');
 
 const { createContainer } = require('./dependencyInjection');
 const { initWebSocket } = require('./websocket');
 const cors = require('@fastify/cors');
+const staticFiles = require('@fastify/static');
 
 async function buildApp(options = {}) {
   const { host = '0.0.0.0', port = 3000 } = options;
@@ -12,10 +14,30 @@ async function buildApp(options = {}) {
     logger: options.logger !== false
   });
 
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : ['http://localhost:5173', 'http://localhost:3000'];
+
   await fastify.register(cors, {
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: allowedOrigins,
     credentials: true
   });
+
+  const frontendDist = process.env.FRONTEND_DIST || path.join(__dirname, '../../frontend/dist');
+  if (require('fs').existsSync(frontendDist)) {
+    await fastify.register(staticFiles, {
+      root: frontendDist,
+      prefix: '/',
+      wildcard: false
+    });
+
+    fastify.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith('/api/') || req.url.startsWith('/socket.io/')) {
+        return reply.code(404).send({ ok: false, error: 'Not Found' });
+      }
+      return reply.sendFile('index.html');
+    });
+  }
 
   fastify.decorate('container', container);
   fastify.decorate('db', container.db);
