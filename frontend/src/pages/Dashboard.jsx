@@ -125,7 +125,7 @@ export default function Dashboard() {
       onClick={() => showPull ? handlePull(conv) : setActiveConversation(conv)}
     >
       <div className="conv-header">
-        <span className="contact-name">{conv.contact_name || conv.contact_phone}</span>
+        <span className="contact-name">{conv.contacts?.name || conv.contacts?.phone || 'Desconhecido'}</span>
         <span className="conv-time">{formatTime(conv.last_message_at)}</span>
       </div>
       <div className="conv-meta">
@@ -313,7 +313,7 @@ export default function Dashboard() {
                           onClick={() => setActiveConversation(conv)}
                         >
                           <div className="conv-header">
-                            <span className="contact-name">{conv.contact_name || conv.contact_phone}</span>
+                            <span className="contact-name">{conv.contacts?.name || conv.contacts?.phone || 'Desconhecido'}</span>
                             <span className="conv-time">{formatTime(conv.last_message_at)}</span>
                           </div>
                           <div className="conv-meta">
