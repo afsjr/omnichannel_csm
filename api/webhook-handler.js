@@ -60,7 +60,13 @@ module.exports = async (req, res) => {
     return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
   }
   try {
-    const payload = req.body || {};
+    let payload = req.body || {};
+    
+    // Evolution API v2 pode enviar array no top-level
+    if (Array.isArray(payload) && payload.length > 0) {
+      payload = payload[0];
+    }
+    
     console.log('WEBHOOK RECEIVED event:', payload.event);
     
     // Process messages.upsert
