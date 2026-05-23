@@ -38,13 +38,6 @@ export default function Dashboard() {
     if (showResolved) {
       fetchResolvedConversations(1)
     }
-    
-    const interval = setInterval(() => {
-      fetchQueue(1, filterDept)
-      fetchMyConversations(1, user?.id)
-    }, 10000)
-    
-    return () => clearInterval(interval)
   }, [filterDept, user?.id, showResolved])
 
   useEffect(() => {

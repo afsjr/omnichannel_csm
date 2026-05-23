@@ -21,28 +21,14 @@ export default function ChatWindow() {
   } = useChatStore()
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [editingDraft, setEditingDraft] = useState(false)
-  const [draftText, setDraftText] = useState('')
   const [showMediaPanel, setShowMediaPanel] = useState(false)
   const fileInputRef = useRef(null)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
   useEffect(() => {
-    setDraftText(draft || '')
-  }, [draft])
-
-  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  useEffect(() => {
-    if (!activeConversation?.id) return
-    const interval = setInterval(() => {
-      refreshMessages(activeConversation.id)
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [activeConversation?.id])
 
   const handleSend = async () => {
     if (!input.trim() || sending) return
@@ -58,22 +44,6 @@ export default function ChatWindow() {
       e.preventDefault()
       handleSend()
     }
-  }
-
-  const handleUseDraft = () => {
-    setInput(draft || '')
-    inputRef.current?.focus()
-  }
-
-  const handleRegenerate = async () => {
-    if (activeConversation) {
-      await processWithAI(activeConversation.id)
-    }
-  }
-
-  const handleSaveDraft = async () => {
-    await updateDraft(draftText)
-    setEditingDraft(false)
   }
 
   const handleResolve = async () => {
@@ -155,54 +125,10 @@ export default function ChatWindow() {
         <div className="chat-actions">
           {isResolved && <span className="resolved-badge">🔒 Encerrada</span>}
           {!isResolved && (
-            <>
-              <span className="dept-badge">{classifiedDepartment || activeConversation.department_name || 'Sem setor'}</span>
-              <button onClick={handleRegenerate} disabled={isAILoading} className="btn-ai">
-                {isAILoading ? '🤖 IA...' : '🤖 Gerar IA'}
-              </button>
-              <button onClick={handleResolve} className="btn-resolve">Encerrar</button>
-            </>
+            <button onClick={handleResolve} className="btn-resolve">Encerrar</button>
           )}
         </div>
       </header>
-
-      {isAILoading && !isResolved && (
-        <div className="ai-loading">
-          <span>🤖 Analisando mensagem e gerando sugestão...</span>
-        </div>
-      )}
-
-      {draft && !editingDraft && !isAILoading && !isResolved && (
-        <div className="ai-draft-box">
-          <div className="ai-draft-header">
-            <span>✨ Sugestão da IA</span>
-            {draftConfidence && <span className="confidence">{Math.round(draftConfidence * 100)}%</span>}
-            <div className="ai-actions">
-              <button onClick={() => setEditingDraft(true)} title="Editar">✏️</button>
-              <button onClick={handleRegenerate} title="Regenerar">🔄</button>
-              <button onClick={handleUseDraft} className="btn-use">Usar</button>
-            </div>
-          </div>
-          <div className="ai-draft-content">
-            <p>{draft}</p>
-          </div>
-        </div>
-      )}
-
-      {editingDraft && (
-        <div className="draft-editor">
-          <textarea
-            value={draftText}
-            onChange={(e) => setDraftText(e.target.value)}
-            placeholder="Edite a sugestão da IA..."
-            rows={3}
-          />
-          <div className="draft-editor-actions">
-            <button onClick={() => setEditingDraft(false)} className="btn-cancel">Cancelar</button>
-            <button onClick={handleSaveDraft} className="btn-save">Salvar</button>
-          </div>
-        </div>
-      )}
 
       <div className="messages-container">
         {isLoading ? (
@@ -212,28 +138,23 @@ export default function ChatWindow() {
         ) : (
           messages.map((msg, idx) => {
             const showDate = idx === 0 || formatDate(messages[idx - 1]?.created_at) !== formatDate(msg.created_at)
-            const isAIMessage = msg.sender_type === 'ai' || msg.metadata?.action === 'ai_triage'
+            const senderName = msg.direction === 'incoming' 
+              ? (activeConversation.contacts?.name || activeConversation.contact_name || 'Cliente') 
+              : 'Atendente';
+
             return (
               <div key={msg.id || idx}>
                 {showDate && <div className="date-divider">{formatDate(msg.created_at)}</div>}
-                <div className={`message ${msg.direction} ${isAIMessage ? 'ai-message' : ''}`}>
-                  {isAIMessage && <div className="ai-icon">🤖</div>}
+                <div className={`message ${msg.direction}`}>
                   <div className="message-content">
-                    {isAIMessage ? (
-                      <div className="ai-content">
-                        {msg.content.split('\n').map((line, i) => (
-                          <div key={i} className={line.startsWith('**') ? 'ai-line-bold' : ''}>
-                            {line.replace(/\*\*/g, '')}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      msg.content
-                    )}
+                    <div className="sender-name" style={{ fontSize: '0.8em', fontWeight: 'bold', marginBottom: '4px', opacity: 0.7 }}>
+                      {senderName}
+                    </div>
+                    {msg.content}
                   </div>
                   <div className="message-meta">
-                    {isAIMessage ? <span className="ai-label">Análise IA</span> : <span className="time">{formatTime(msg.created_at)}</span>}
-                    {msg.direction === 'outgoing' && !isAIMessage && <span className="status">{msg.status}</span>}
+                    <span className="time">{formatTime(msg.created_at)}</span>
+                    {msg.direction === 'outgoing' && <span className="status">{msg.status}</span>}
                   </div>
                   {isMediaMessage(msg) && (
                     <div className="media-preview">
