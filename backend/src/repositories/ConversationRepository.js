@@ -22,7 +22,7 @@ class ConversationRepository extends SupabaseBaseRepository {
     };
   }
 
-  async findByContactAndStatus(companyId, contactId, channel = 'whatsapp', status = ['pending', 'in_progress']) {
+  async findByContactAndStatus(companyId, contactId, channel = 'whatsapp', status = ['pending', 'in_progress', 'queued']) {
     let query = this.client
       .from('conversations')
       .select('*')
@@ -49,7 +49,11 @@ class ConversationRepository extends SupabaseBaseRepository {
       .eq('company_id', companyId);
 
     if (filters.status) {
-      query = query.eq('status', filters.status);
+      if (Array.isArray(filters.status)) {
+        query = query.in('status', filters.status);
+      } else {
+        query = query.eq('status', filters.status);
+      }
     }
     if (filters.departmentId) {
       query = query.eq('department_id', filters.departmentId);

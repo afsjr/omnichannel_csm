@@ -17,7 +17,7 @@ class ChatService {
     const contact = await this.contactRepository.findOrCreate(companyId, contactName, phone);
 
     let conversationResult = await this.conversationRepository.findByContactAndStatus(
-      companyId, contact.id, channel, ['pending', 'in_progress']
+      companyId, contact.id, channel, ['pending', 'in_progress', 'queued']
     );
 
     let conversation;
@@ -65,7 +65,7 @@ class ChatService {
   async getQueueByDepartment(companyId, departmentId) {
     const result = await this.conversationRepository.findByCompany(companyId, {
       departmentId,
-      status: 'pending'
+      status: ['pending', 'queued']
     });
     return result.rows;
   }
@@ -73,7 +73,7 @@ class ChatService {
   async getQueue(companyId, departmentId) {
     const result = await this.conversationRepository.findByCompany(companyId, {
       departmentId: departmentId || undefined,
-      status: 'pending',
+      status: ['pending', 'queued'],
       unassigned: !departmentId
     });
     return result.rows;
@@ -98,7 +98,7 @@ class ChatService {
     const contact = await this.contactRepository.findOrCreate(companyId, contactName, phone);
 
     const existingConv = await this.conversationRepository.findByContactAndStatus(
-      companyId, contact.id, channel, ['pending', 'in_progress']
+      companyId, contact.id, channel, ['pending', 'in_progress', 'queued']
     );
 
     let conversation;
@@ -263,7 +263,7 @@ class ChatService {
     }
 
     const existing = await this.conversationRepository.findByContactAndStatus(
-      companyId, contactId, 'whatsapp', 'pending'
+      companyId, contactId, 'whatsapp', ['pending', 'queued']
     );
     if (existing.rowCount > 0) {
       throw new Error('Conversa ja existe com este contato');

@@ -64,7 +64,7 @@ async function getQueue(req, res) {
   const { companyId, departmentId } = req.query || {};
   try {
     const db = getSupabase();
-    let q = db.from('conversations').select('*, contacts(*)').eq('status', 'pending').is('assigned_to', null);
+    let q = db.from('conversations').select('*, contacts(*)').in('status', ['pending', 'queued']).is('assigned_to', null);
     if (companyId) q = q.eq('company_id', Number(companyId));
     if (departmentId) q = q.eq('department_id', Number(departmentId));
     const { data } = await q.order('created_at', { ascending: true });
@@ -138,7 +138,7 @@ async function requeueConversation(req, res) {
   if (!conversationId) return res.status(400).json({ ok: false, error: 'conversationId obrigatório' });
   try {
     const db = getSupabase();
-    const { data, error } = await db.from('conversations').update({ status: 'pending', assigned_to: null }).eq('id', Number(conversationId)).select('*, contacts(*)').single();
+    const { data, error } = await db.from('conversations').update({ status: 'queued', assigned_to: null }).eq('id', Number(conversationId)).select('*, contacts(*)').single();
     if (error) throw error;
     return res.json({ ok: true, data });
   } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
@@ -151,7 +151,7 @@ async function getResolved(req, res) {
     const db = getSupabase();
     let q = db.from('conversations').select('*, contacts(*)').eq('status', 'resolved');
     if (companyId) q = q.eq('company_id', Number(companyId));
-    const { data } = await q.order('updated_at', { ascending: false }).limit(Number(limit));
+    const { data } = await q.order('last_message_at', { ascending: false }).limit(Number(limit));
     return res.json({ ok: true, data: data || [] });
   } catch(e) { return res.status(500).json({ ok: false, error: e.message }); }
 }

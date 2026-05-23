@@ -14,14 +14,15 @@ module.exports = async (req, res) => {
 
   try {
     if (action === 'full') {
-      const [{count:open},{count:pending},{count:resolved},{count:totalContacts},{data:recent}] = await Promise.all([
+      const [{count:open},{count:pending},{count:queued},{count:resolved},{count:totalContacts},{data:recent}] = await Promise.all([
         db.from('conversations').select('id',{count:'exact',head:true}).eq('company_id',cid).eq('status','in_progress'),
         db.from('conversations').select('id',{count:'exact',head:true}).eq('company_id',cid).eq('status','pending'),
+        db.from('conversations').select('id',{count:'exact',head:true}).eq('company_id',cid).in('status',['queued','open']),
         db.from('conversations').select('id',{count:'exact',head:true}).eq('company_id',cid).eq('status','resolved'),
         db.from('contacts').select('id',{count:'exact',head:true}).eq('company_id',cid),
-        db.from('conversations').select('*, contacts(name,phone)').eq('company_id',cid).order('updated_at',{ascending:false}).limit(5)
+        db.from('conversations').select('*, contacts(name,phone)').eq('company_id',cid).order('last_message_at',{ascending:false}).limit(5)
       ]);
-      return res.json({ ok: true, data: { stats: { open, pending, resolved, totalConversations: open+pending+resolved, totalContacts }, recentConversations: recent||[] } });
+      return res.json({ ok: true, data: { stats: { open, pending, queued, resolved, totalConversations: open+pending+queued+resolved, totalContacts }, recentConversations: recent||[] } });
     }
 
     const [{count:open},{count:pending},{count:resolved}] = await Promise.all([

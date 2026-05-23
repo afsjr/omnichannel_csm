@@ -13,7 +13,7 @@ async function getStats(req, reply) {
     `, [companyIdNum]),
     db.query(`
       SELECT COUNT(*) as count FROM conversations
-      WHERE company_id = $1 AND status = 'pending'
+      WHERE company_id = $1 AND status = 'queued'
     `, [companyIdNum]),
     db.query(`
       SELECT COUNT(*) as count FROM conversations
