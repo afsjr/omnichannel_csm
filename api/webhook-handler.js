@@ -279,9 +279,13 @@ module.exports = async (req, res) => {
         }
       }
 
-      // Fallback: if media_url is a mediaKey/directPath (not http/data:), try downloading from Evolution
-      if (parsed.media_type && parsed.media_url && !parsed.media_url.startsWith('http') && !parsed.media_url.startsWith('data:') && parsed.message_key) {
+      // WhatsApp CDN URLs (mmg.whatsapp.net) are encrypted (.enc) and temporary.
+      // Also handles mediaKey/directPath. Both need Evolution downloadMedia → re-upload to Storage.
+      const isWhatsAppCdn = parsed.media_url?.includes('mmg.whatsapp.net') || parsed.media_url?.includes('.enc');
+      const isMediaKeyOrPath = parsed.media_type && parsed.media_url && !parsed.media_url.startsWith('http') && !parsed.media_url.startsWith('data:');
+      if ((isWhatsAppCdn || isMediaKeyOrPath) && parsed.message_key) {
         try {
+          console.log('WEBHOOK %s: downloading via Evolution (url=%s)', parsed.media_type, (parsed.media_url || '').slice(0, 60));
           const dlBuf = await downloadAudioFromEvolution(parsed.message_key);
           if (dlBuf?.length > 0) {
             const ready = await ensureMediaBucket();
@@ -293,7 +297,7 @@ module.exports = async (req, res) => {
             }
           }
         } catch (dlErr) {
-          console.error('WEBHOOK Evolution download fallback failed for %s: %s', parsed.media_type, dlErr.message);
+          console.error('WEBHOOK Evolution download failed for %s: %s', parsed.media_type, dlErr.message);
         }
       }
 
