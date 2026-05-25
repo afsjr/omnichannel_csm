@@ -240,9 +240,16 @@ module.exports = async (req, res) => {
       const saved = await saveIncomingMessage(enrichedPayload);
       console.log('WEBHOOK saved: convId=%s msgId=%s', saved?.conversation?.id, saved?.id);
 
-      // Transcribe audio synchronously within the request
+      // Mark transcribing early so frontend shows status
       if (parsed.media_type === 'audio' && saved?.id) {
-        await transcribeAudio(saved.id, parsed);
+        await updateMessageMetadata(saved.id, { transcribing: true }).catch(() => {});
+      }
+
+      // Fire-and-forget transcription: response returns immediately so Evolution gets HTTP 200
+      if (parsed.media_type === 'audio' && saved?.id) {
+        transcribeAudio(saved.id, parsed).catch(e =>
+          console.error('WEBHOOK transcription background error:', e)
+        );
       }
 
       // Trigger AI processing in background (fire-and-forget)
