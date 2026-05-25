@@ -27,7 +27,11 @@ const useSocket = () => {
     socketService.on('message_updated', (data) => {
       const store = useChatStore.getState();
       if (store.activeConversation?.id === data.conversationId) {
-        store.refreshMessages(data.conversationId);
+        if (data.message?.id) {
+          store.updateMessage(data.message.id, data.message);
+        } else {
+          store.refreshMessages(data.conversationId);
+        }
       }
     });
   };

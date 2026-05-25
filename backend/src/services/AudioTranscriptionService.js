@@ -9,7 +9,13 @@ class AudioTranscriptionService {
     const metadata = this.parseMetadata(message.metadata);
     console.log('AudioTranscription: starting for message', message.id);
 
-    if (!metadata.media_url && !metadata.original_payload?.key) {
+    if (!this.llmProvider?.apiKey) {
+      console.log('AudioTranscription: LLM_API_KEY not configured for message', message.id);
+      await this.finish(message.id, null);
+      return null;
+    }
+
+    if (!metadata.media_url && !metadata.original_payload?.key && !metadata.message_key) {
       console.log('AudioTranscription: no media data for message', message.id);
       await this.finish(message.id, null);
       return null;
@@ -47,9 +53,10 @@ class AudioTranscriptionService {
         if (transcription) return transcription;
       }
 
-      if (metadata.original_payload?.key) {
+      const key = metadata.original_payload?.key || metadata.message_key;
+      if (key?.id && key?.remoteJid) {
         console.log('AudioTranscription: trying Evolution API download');
-        const transcription = await this.transcribeFromEvolution(metadata);
+        const transcription = await this.transcribeFromEvolution(key, metadata.media_mimetype);
         if (transcription) return transcription;
       }
 
@@ -108,25 +115,24 @@ class AudioTranscriptionService {
     }
   }
 
-  async transcribeFromEvolution(metadata) {
+  async transcribeFromEvolution(messageKey, mimetype) {
     try {
-      const key = metadata.original_payload?.key || {};
-      const messageKey = {
-        id: key.id,
-        remoteJid: key.remoteJid,
-        fromMe: key.fromMe || false
+      const key = {
+        id: messageKey.id,
+        remoteJid: messageKey.remoteJid,
+        fromMe: messageKey.fromMe || false
       };
 
-      if (!messageKey.id || !messageKey.remoteJid) {
+      if (!key.id || !key.remoteJid) {
         console.log('AudioTranscription: invalid message key');
         return null;
       }
 
       console.log('AudioTranscription: Evolution downloading');
-      const audioBuffer = await this.evolutionProvider.downloadMedia(messageKey);
+      const audioBuffer = await this.evolutionProvider.downloadMedia(key);
       console.log('AudioTranscription: Evolution download OK, size:', audioBuffer.length);
 
-      return this.transcribeBuffer(audioBuffer, metadata.media_mimetype || 'audio/ogg');
+      return this.transcribeBuffer(audioBuffer, mimetype || 'audio/ogg');
     } catch (error) {
       console.log('AudioTranscription: Evolution download error:', error.message);
       return null;
@@ -134,11 +140,6 @@ class AudioTranscriptionService {
   }
 
   async transcribeBuffer(buffer, mimetype) {
-    if (!this.llmProvider.apiKey) {
-      console.log('AudioTranscription: LLM_API_KEY not configured');
-      return null;
-    }
-
     const baseMime = mimetype?.split(';')[0]?.trim() || 'audio/ogg';
     const url = `${this.llmProvider.baseUrl}/audio/transcriptions`;
     const formData = new FormData();

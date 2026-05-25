@@ -161,6 +161,7 @@ module.exports = async (req, res) => {
         media_mimetype: parsed.media_mimetype,
         media_caption: parsed.media_caption, 
         media_filesize: parsed.media_filesize,
+        message_key: parsed.message_key,
         channel: 'whatsapp' 
       };
       

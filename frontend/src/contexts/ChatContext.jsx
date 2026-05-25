@@ -358,6 +358,23 @@ export const useChatStore = create((set, get) => ({
   },
 
   addMessage: (message) => set((s) => ({ messages: [...s.messages, normalizeMessage(message)] })),
+
+  updateMessage: (messageId, updates) => set((s) => {
+    const index = s.messages.findIndex(m => m.id === messageId);
+    if (index === -1) return {};
+    const updated = { ...s.messages[index] };
+    if (updates.metadata) {
+      const currentMeta = typeof updated.metadata === 'string'
+        ? (() => { try { return JSON.parse(updated.metadata); } catch { return {}; } })()
+        : (updated.metadata || {});
+      updated.metadata = { ...currentMeta, ...updates.metadata };
+    }
+    if (updates.content !== undefined) updated.content = updates.content;
+    const newMessages = [...s.messages];
+    newMessages[index] = normalizeMessage(updated);
+    return { messages: newMessages };
+  }),
+
   clearError: () => set({ error: null })
 }))
 

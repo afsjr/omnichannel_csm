@@ -140,15 +140,16 @@ class EvolutionProvider {
 
     if (contentType.includes('application/json')) {
       const data = await response.json();
-      const base64 = data.base64 || data.data?.base64 || data.media || data.data?.media;
+      const nested = data.data || data;
+      const base64 = nested.base64 || data.base64 || nested.media || data.media;
 
       if (base64) {
         const cleanBase64 = String(base64).replace(/^data:[^;]+;base64,/, '');
         return Buffer.from(cleanBase64, 'base64');
       }
 
-      if (data.url || data.mediaUrl || data.data?.url || data.data?.mediaUrl) {
-        const mediaUrl = data.url || data.mediaUrl || data.data.url || data.data.mediaUrl;
+      const mediaUrl = nested.url || nested.mediaUrl || data.url || data.mediaUrl;
+      if (mediaUrl) {
         const mediaResponse = await fetch(mediaUrl, {
           headers: { 'Accept': 'audio/*,*/*' }
         });
