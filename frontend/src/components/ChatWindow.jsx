@@ -41,7 +41,7 @@ export default function ChatWindow() {
     if (!activeConversation?.id) return
     const interval = setInterval(() => {
       refreshMessages(activeConversation.id)
-    }, 5000)
+    }, 3000)
     return () => clearInterval(interval)
   }, [activeConversation?.id])
 

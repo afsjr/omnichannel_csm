@@ -92,7 +92,7 @@ async createIncoming(conversationId, content, metadata = {}) {
       .from('messages')
       .select('metadata')
       .eq('id', messageId)
-      .single();
+      .maybeSingle();
 
     const mergedMetadata = { ...(existing?.metadata || {}), ...updates };
 
@@ -101,10 +101,10 @@ async createIncoming(conversationId, content, metadata = {}) {
       .update({ metadata: typeof mergedMetadata === 'object' ? JSON.stringify(mergedMetadata) : mergedMetadata })
       .eq('id', messageId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
-    return { rows: [data], rowCount: 1 };
+    return { rows: data ? [data] : [], rowCount: data ? 1 : 0 };
   }
 
   async createOutgoing(conversationId, content, senderId, status = 'sent') {

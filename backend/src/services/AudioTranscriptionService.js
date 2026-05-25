@@ -14,7 +14,7 @@ class AudioTranscriptionService {
       return null;
     }
 
-    await this.messageRepository.updateMetadata(message.id, { transcribing: true });
+    this.messageRepository.updateMetadata(message.id, { transcribing: true }).catch(() => {});
 
     let transcription = null;
 

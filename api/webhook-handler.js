@@ -111,9 +111,9 @@ module.exports = async (req, res) => {
 
       // Trigger audio transcription in background
       if (parsed.media_type === 'audio' && saved?.id) {
+        updateMessageMetadata(saved.id, { transcribing: true }).catch(() => {});
         setImmediate(async () => {
           try {
-            await updateMessageMetadata(saved.id, { transcribing: true });
 
             let audioBuffer = null;
 
