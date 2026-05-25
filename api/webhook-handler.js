@@ -113,21 +113,30 @@ module.exports = async (req, res) => {
       if (parsed.media_type === 'audio' && saved?.id) {
         updateMessageMetadata(saved.id, { transcribing: true }).catch(() => {});
         setImmediate(async () => {
-          try {
+          const timeout = setTimeout(async () => {
+            console.log('Webhook transcription: timeout for msg', saved.id);
+            await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: null }).catch(() => {});
+          }, 120000);
 
+          try {
             let audioBuffer = null;
 
             if (parsed.media_url?.startsWith('http')) {
+              const controller = new AbortController();
+              const fetchTimeout = setTimeout(() => controller.abort(), 30000);
               const audioResp = await fetch(parsed.media_url, {
+                signal: controller.signal,
                 headers: { 'Accept': 'audio/*,*/*' }
               });
+              clearTimeout(fetchTimeout);
               if (audioResp.ok) {
                 audioBuffer = Buffer.from(await audioResp.arrayBuffer());
               }
             }
 
             if (!audioBuffer) {
-              console.log('Webhook transcription: no downloadable audio for msg', saved.id);
+              console.log('Webhook transcription: no audio for msg', saved.id);
+              clearTimeout(timeout);
               await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: null });
               return;
             }
@@ -138,22 +147,28 @@ module.exports = async (req, res) => {
             formData.append('model', 'whisper-large-v3');
             formData.append('temperature', '0');
 
+            const groqController = new AbortController();
+            const groqTimeout = setTimeout(() => groqController.abort(), 60000);
             const groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${process.env.LLM_API_KEY}` },
-              body: formData
+              body: formData,
+              signal: groqController.signal
             });
+            clearTimeout(groqTimeout);
 
             if (!groqResp.ok) {
               const errText = await groqResp.text();
-              throw new Error(`Groq API ${groqResp.status}: ${errText}`);
+              throw new Error(`Groq ${groqResp.status}: ${errText.slice(0, 200)}`);
             }
 
             const { text } = await groqResp.json();
+            clearTimeout(timeout);
             await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: text });
             console.log('Webhook transcription: success for msg', saved.id, text.length, 'chars');
           } catch (error) {
             console.error('Webhook transcription error:', error.message);
+            clearTimeout(timeout);
             await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: null }).catch(() => {});
           }
         });
