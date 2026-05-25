@@ -77,14 +77,16 @@ function parseWebhookPayload(payload) {
     const doc = msg.documentMessage;
     result.content = doc.fileName || '[Documento]';
     result.media_type = 'document';
-    result.media_url = doc.url || doc.mediaKey || doc.directPath;
+    result.media_url = doc.base64
+      ? `data:${doc.mimetype || 'application/octet-stream'};base64,${doc.base64}`
+      : (doc.url || doc.mediaKey || doc.directPath);
     result.media_mimetype = doc.mimetype;
     result.media_caption = doc.caption || doc.title;
     result.media_filesize = doc.fileLength;
   } else if (msg?.stickerMessage) {
     result.content = '[Sticker]';
     result.media_type = 'image';
-    result.media_url = msg.stickerMessage.url || msg.stickerMessage.mediaKey;
+    result.media_url = msg.stickerMessage.url || msg.stickerMessage.mediaKey || msg.stickerMessage.directPath;
     result.media_mimetype = 'image/webp';
   } else if (msg?.ephemeralMessage?.message) {
     return parseWebhookPayload({ ...data, message: msg.ephemeralMessage.message });

@@ -51,12 +51,13 @@ async function downloadAudioFromEvolution(messageKey) {
   }
 
   const data = await response.json();
-  const base64 = data.base64 || data.data?.base64 || data.media || data.data?.media;
+  const nested = data.data || data;
+  const base64 = nested.base64 || data.base64 || nested.media || data.media;
   if (base64) {
     return Buffer.from(String(base64).replace(/^data:[^;]+;base64,/, ''), 'base64');
   }
 
-  const mediaUrl = data.url || data.mediaUrl || data.data?.url || data.data?.mediaUrl;
+  const mediaUrl = nested.url || nested.mediaUrl || data.url || data.mediaUrl;
   if (mediaUrl) {
     return fetchAudioFromUrl(mediaUrl);
   }
@@ -71,16 +72,16 @@ function parseEvolutionPayload(payload) {
     payload = payload[0];
     msgObj = payload;
   }
-  
+
   if (payload.data) {
     if (Array.isArray(payload.data) && payload.data.length > 0) {
       msgObj = payload.data[0];
     } else if (Array.isArray(payload.data.messages) && payload.data.messages.length > 0) {
       msgObj = { ...payload.data.messages[0], pushName: payload.data.pushName };
-    } else if (payload.data.message && payload.data.message.key) { // v1
+    } else if (payload.data.message && payload.data.message.key) {
       msgObj = payload.data.message;
       if (payload.data.pushName) msgObj.pushName = payload.data.pushName;
-    } else if (payload.data.key) { // v2
+    } else if (payload.data.key) {
       msgObj = payload.data;
     } else {
       msgObj = { ...payload.data, ...payload.data.message };
@@ -99,29 +100,102 @@ function parseEvolutionPayload(payload) {
     media_caption: null,
     media_filesize: null,
     message_key: msgObj.key || null,
+    ignore: false,
     phone: null,
     contact_name: null
   };
+
   if (msgObj.key?.remoteJid) result.phone = normalizePhone(msgObj.key.remoteJid);
   if (msgObj.pushName) result.contact_name = msgObj.pushName;
-  
-  const msg = msgObj.message || msgObj;
-  
-  if (typeof msg.conversation === 'string') { result.content = msg.conversation; }
-  else if (msg.extendedTextMessage?.text) { result.content = msg.extendedTextMessage.text; }
-  else if (msg.imageMessage) { const i = msg.imageMessage; result.content = i.caption || '[Imagem]'; result.media_type = 'image'; result.media_url = i.url || i.mediaKey || i.directPath; result.media_mimetype = i.mimetype || 'image/jpeg'; result.media_caption = i.caption; result.media_filesize = i.fileLength; }
-  else if (msg.videoMessage) { const v = msg.videoMessage; result.content = v.caption || '[Vídeo]'; result.media_type = 'video'; result.media_url = v.url || v.mediaKey || v.directPath; result.media_mimetype = v.mimetype || 'video/mp4'; result.media_caption = v.caption; result.media_filesize = v.fileLength; }
-  else if (msg.audioMessage) { const a = msg.audioMessage; result.content = '[Áudio]'; result.media_type = 'audio'; result.media_url = a.url || a.mediaKey || a.directPath; result.media_mimetype = a.mimetype || 'audio/ogg'; result.media_filesize = a.fileLength; }
-  else if (msg.documentMessage) { const d = msg.documentMessage; result.content = d.fileName || '[Documento]'; result.media_type = 'document'; result.media_url = d.url || d.mediaKey || d.directPath; result.media_mimetype = d.mimetype; result.media_caption = d.caption || d.title; result.media_filesize = d.fileLength; }
-  
-  if (!result.phone && msgObj.from) result.phone = normalizePhone(msgObj.from);
-  
-  // Ignore sent messages
+
   if (msgObj.key?.fromMe) {
     result.ignore = true;
+    return result;
   }
-  
+
+  const msg = msgObj.message || msgObj;
+
+  if (typeof msg.conversation === 'string') { result.content = msg.conversation; }
+  else if (msg.extendedTextMessage?.text) { result.content = msg.extendedTextMessage.text; }
+  else if (msg.imageMessage) { const i = msg.imageMessage; result.content = i.caption || '[Imagem]'; result.media_type = 'image'; result.media_url = i.base64 ? `data:${i.mimetype || 'image/jpeg'};base64,${i.base64}` : (i.url || i.mediaKey || i.directPath); result.media_mimetype = i.mimetype || 'image/jpeg'; result.media_caption = i.caption; result.media_filesize = i.fileLength; }
+  else if (msg.videoMessage) { const v = msg.videoMessage; result.content = v.caption || '[Vídeo]'; result.media_type = 'video'; result.media_url = v.base64 ? `data:${v.mimetype || 'video/mp4'};base64,${v.base64}` : (v.url || v.mediaKey || v.directPath); result.media_mimetype = v.mimetype || 'video/mp4'; result.media_caption = v.caption; result.media_filesize = v.fileLength; }
+  else if (msg.audioMessage) { const a = msg.audioMessage; result.content = '[Áudio]'; result.media_type = 'audio'; result.media_url = a.base64 ? `data:${a.mimetype || 'audio/ogg'};base64,${a.base64}` : (a.url || a.mediaKey || a.directPath); result.media_mimetype = a.mimetype || 'audio/ogg'; result.media_filesize = a.fileLength; }
+  else if (msg.documentMessage) { const d = msg.documentMessage; result.content = d.fileName || '[Documento]'; result.media_type = 'document'; result.media_url = d.base64 ? `data:${d.mimetype || 'application/octet-stream'};base64,${d.base64}` : (d.url || d.mediaKey || d.directPath); result.media_mimetype = d.mimetype; result.media_caption = d.caption || d.title; result.media_filesize = d.fileLength; }
+  else if (msg.stickerMessage) { result.content = '[Sticker]'; result.media_type = 'image'; result.media_url = msg.stickerMessage.url || msg.stickerMessage.mediaKey; result.media_mimetype = 'image/webp'; }
+  else if (msg.ephemeralMessage?.message) {
+    return parseEvolutionPayload({ ...payload, message: msg.ephemeralMessage.message });
+  } else if (msg) {
+    console.log('parseEvolutionPayload unknown message keys:', Object.keys(msg));
+  }
+
+  if (!result.phone && msgObj.from) result.phone = normalizePhone(msgObj.from);
+
   return result;
+}
+
+async function transcribeAudio(savedId, parsed) {
+  try {
+    console.log('Webhook transcription: starting for msg', savedId);
+    await updateMessageMetadata(savedId, { transcribing: true });
+
+    let audioBuffer = null;
+
+    if (parsed.media_url?.startsWith('http')) {
+      console.log('Webhook transcription: fetching URL');
+      audioBuffer = await fetchAudioFromUrl(parsed.media_url);
+    } else if (parsed.media_url?.startsWith('data:')) {
+      console.log('Webhook transcription: decoding base64');
+      const commaIdx = parsed.media_url.indexOf(',');
+      audioBuffer = Buffer.from(parsed.media_url.substring(commaIdx + 1), 'base64');
+    }
+
+    if (!audioBuffer && parsed.message_key) {
+      console.log('Webhook transcription: downloading from Evolution');
+      audioBuffer = await downloadAudioFromEvolution({
+        id: parsed.message_key.id,
+        remoteJid: parsed.message_key.remoteJid,
+        fromMe: parsed.message_key.fromMe || false
+      });
+    }
+
+    if (!audioBuffer) {
+      console.log('Webhook transcription: no audio data for msg', savedId);
+      await updateMessageMetadata(savedId, { transcribing: false, audio_transcription: null });
+      return null;
+    }
+
+    console.log('Webhook transcription: audio size', audioBuffer.length);
+    const formData = new FormData();
+    const blob = new Blob([audioBuffer], { type: parsed.media_mimetype || 'audio/ogg' });
+    formData.append('file', blob, 'audio.ogg');
+    formData.append('model', 'whisper-large-v3');
+    formData.append('temperature', '0');
+    formData.append('language', 'pt');
+
+    const groqController = new AbortController();
+    const groqTimeout = setTimeout(() => groqController.abort(), 120000);
+    const groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.LLM_API_KEY}` },
+      body: formData,
+      signal: groqController.signal
+    });
+    clearTimeout(groqTimeout);
+
+    if (!groqResp.ok) {
+      const errText = await groqResp.text();
+      throw new Error(`Groq ${groqResp.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const { text } = await groqResp.json();
+    await updateMessageMetadata(savedId, { transcribing: false, audio_transcription: text });
+    console.log('Webhook transcription: success for msg', savedId, text.length, 'chars');
+    return text;
+  } catch (error) {
+    console.error('Webhook transcription error for msg', savedId, ':', error.message);
+    await updateMessageMetadata(savedId, { transcribing: false, audio_transcription: null }).catch(() => {});
+    return null;
+  }
 }
 
 module.exports = async (req, res) => {
@@ -130,50 +204,54 @@ module.exports = async (req, res) => {
   }
   try {
     let payload = req.body || {};
-    
-    // Evolution API v2 pode enviar array no top-level
+
     if (Array.isArray(payload) && payload.length > 0) {
       payload = payload[0];
     }
-    
+
     console.log('WEBHOOK RECEIVED event:', payload.event);
-    
-    // Process messages.upsert
+
     if (payload.event === 'messages.upsert' || payload.event === 'MESSAGES_UPSERT') {
       const parsed = parseEvolutionPayload(payload);
-      
+
       if (parsed.ignore) {
         return res.status(200).json({ ok: true, ignored: true, reason: 'fromMe' });
       }
-      
+
       if (!parsed.content && !parsed.media_type && !parsed.phone) {
-        console.log('Webhook: sem dados úteis, ignorando', JSON.stringify(parsed));
+        console.log('Webhook: no useful data', JSON.stringify(parsed));
         return res.status(200).json({ ok: true, ignored: true });
       }
 
-      const enrichedPayload = { 
-        ...payload, 
-        content: parsed.content, 
-        phone: parsed.phone, 
-        contact_name: parsed.contact_name, 
-        media_type: parsed.media_type, 
-        media_url: parsed.media_url, 
+      const enrichedPayload = {
+        ...payload,
+        content: parsed.content,
+        phone: parsed.phone,
+        contact_name: parsed.contact_name,
+        media_type: parsed.media_type,
+        media_url: parsed.media_url,
         media_mimetype: parsed.media_mimetype,
-        media_caption: parsed.media_caption, 
+        media_caption: parsed.media_caption,
         media_filesize: parsed.media_filesize,
         message_key: parsed.message_key,
-        channel: 'whatsapp' 
+        channel: 'whatsapp'
       };
-      
+
       const saved = await saveIncomingMessage(enrichedPayload);
       console.log('WEBHOOK saved: convId=%s msgId=%s', saved?.conversation?.id, saved?.id);
-      
-      // Trigger AI processing in background
+
+      // Transcribe audio synchronously within the request
+      if (parsed.media_type === 'audio' && saved?.id) {
+        await transcribeAudio(saved.id, parsed);
+      }
+
+      // Trigger AI processing in background (fire-and-forget)
       if (saved?.conversation?.id) {
-        const baseUrl = req.headers['x-forwarded-proto'] ? `${req.headers['x-forwarded-proto']}://${req.headers.host}` : `http://${req.headers.host}`;
-        fetch(`${baseUrl}/api/ai/draft`, {
+        const proto = req.headers['x-forwarded-proto'] || 'https';
+        const host = req.headers.host || 'localhost:3000';
+        fetch(`${proto}://${host}/api/ai/draft`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'x-internal-trigger': 'true'
           },
@@ -181,75 +259,13 @@ module.exports = async (req, res) => {
         }).catch(e => console.error('AI draft trigger error:', e));
       }
 
-      // Trigger audio transcription in background
-      if (parsed.media_type === 'audio' && saved?.id) {
-        updateMessageMetadata(saved.id, { transcribing: true }).catch(() => {});
-        setImmediate(async () => {
-          const timeout = setTimeout(async () => {
-            console.log('Webhook transcription: timeout for msg', saved.id);
-            await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: null }).catch(() => {});
-          }, 120000);
-
-          try {
-            let audioBuffer = null;
-
-            if (parsed.media_url?.startsWith('http')) {
-              audioBuffer = await fetchAudioFromUrl(parsed.media_url);
-            }
-
-            if (!audioBuffer && parsed.message_key) {
-              audioBuffer = await downloadAudioFromEvolution({
-                id: parsed.message_key.id,
-                remoteJid: parsed.message_key.remoteJid,
-                fromMe: parsed.message_key.fromMe || false
-              });
-            }
-
-            if (!audioBuffer) {
-              console.log('Webhook transcription: no audio for msg', saved.id);
-              clearTimeout(timeout);
-              await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: null });
-              return;
-            }
-
-            const formData = new FormData();
-            const blob = new Blob([audioBuffer], { type: parsed.media_mimetype || 'audio/ogg' });
-            formData.append('file', blob, 'audio.ogg');
-            formData.append('model', 'whisper-large-v3');
-            formData.append('temperature', '0');
-            formData.append('language', 'pt');
-
-            const groqController = new AbortController();
-            const groqTimeout = setTimeout(() => groqController.abort(), 60000);
-            const groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${process.env.LLM_API_KEY}` },
-              body: formData,
-              signal: groqController.signal
-            });
-            clearTimeout(groqTimeout);
-
-            if (!groqResp.ok) {
-              const errText = await groqResp.text();
-              throw new Error(`Groq ${groqResp.status}: ${errText.slice(0, 200)}`);
-            }
-
-            const { text } = await groqResp.json();
-            clearTimeout(timeout);
-            await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: text });
-            console.log('Webhook transcription: success for msg', saved.id, text.length, 'chars');
-          } catch (error) {
-            console.error('Webhook transcription error:', error.message);
-            clearTimeout(timeout);
-            await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: null }).catch(() => {});
-          }
-        });
-      }
-
-      return res.status(200).json({ ok: true, conversationId: saved?.conversation?.id, messageId: saved?.id });
+      return res.status(200).json({
+        ok: true,
+        conversationId: saved?.conversation?.id,
+        messageId: saved?.id
+      });
     }
-    
-    // Ack other events
+
     return res.status(200).json({ ok: true, ignored: true, event: payload.event });
   } catch (error) {
     console.error('Webhook error:', error.message, error.stack);
