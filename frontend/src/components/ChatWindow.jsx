@@ -264,7 +264,7 @@ export default function ChatWindow() {
                   )}
                   {(msg.content === '[Áudio]' || msg.metadata?.media_type === 'audio') && (
                     <div className="media-preview">
-                      {msg.metadata?.media_url && <audio src={msg.metadata?.media_url} controls />}
+                      {msg.metadata?.media_url?.startsWith('http') && <audio src={msg.metadata?.media_url} controls />}
                       <div className="audio-transcription">
                         <span className="transcription-label">📝 Transcrição</span>
                         {msg.metadata?.audio_transcription ? (

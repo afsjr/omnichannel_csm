@@ -18,16 +18,24 @@ function parseWebhookPayload(payload) {
     media_mimetype: null,
     media_caption: null,
     media_filesize: null,
+    message_key: null,
+    ignore: false,
     phone: null,
     contact_name: null
   };
 
   if (data.key?.remoteJid) {
     result.phone = data.key.remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+    result.message_key = data.key;
   }
 
   if (data.pushName) {
     result.contact_name = data.pushName;
+  }
+
+  if (data.key?.fromMe) {
+    result.ignore = true;
+    return result;
   }
 
   const msg = data.message || data;
@@ -102,6 +110,10 @@ async function receiveWebhook(req, reply) {
 
   const parsedMessage = parseWebhookPayload(payload);
 
+  if (parsedMessage.ignore) {
+    return reply.send({ ok: true, ignored: true, reason: 'fromMe' });
+  }
+
   const enrichedPayload = {
     ...payload,
     content: parsedMessage.content,
@@ -110,6 +122,7 @@ async function receiveWebhook(req, reply) {
     media_mimetype: parsedMessage.media_mimetype,
     media_caption: parsedMessage.media_caption,
     media_filesize: parsedMessage.media_filesize,
+    message_key: parsedMessage.message_key,
     phone: parsedMessage.phone || payload.from,
     contact_name: parsedMessage.contact_name || payload.pushName
   };
@@ -127,6 +140,11 @@ async function receiveWebhook(req, reply) {
   }
 
   if (parsedMessage.media_type === 'audio') {
+    ws.toConversation(req, result.conversation.id, 'message_updated', {
+      conversationId: result.conversation.id,
+      message: { id: result.message.id, metadata: { transcribing: true } }
+    });
+
     setImmediate(async () => {
       try {
         const transcriptionService = req.server.container.services.audioTranscription;
@@ -135,14 +153,24 @@ async function receiveWebhook(req, reply) {
         if (transcription) {
           const updatedConv = await chatService.getConversationWithMessages(result.conversation.id);
           if (updatedConv) {
+            const updatedMsg = updatedConv.messages.find(m => m.id === result.message.id);
             ws.toConversation(req, result.conversation.id, 'message_updated', {
               conversationId: result.conversation.id,
-              messages: updatedConv.messages
+              message: updatedMsg || { id: result.message.id, metadata: { transcribing: false, audio_transcription: transcription } }
             });
           }
+        } else {
+          ws.toConversation(req, result.conversation.id, 'message_updated', {
+            conversationId: result.conversation.id,
+            message: { id: result.message.id, metadata: { transcribing: false, audio_transcription: null } }
+          });
         }
       } catch (error) {
         console.error('Audio transcription error:', error);
+        ws.toConversation(req, result.conversation.id, 'message_updated', {
+          conversationId: result.conversation.id,
+          message: { id: result.message.id, metadata: { transcribing: false, audio_transcription: null } }
+        });
       }
     });
   }
