@@ -1,4 +1,4 @@
-const { saveIncomingMessage } = require('../lib/messages');
+const { saveIncomingMessage, updateMessageMetadata } = require('../lib/messages');
 
 function normalizePhone(phone) {
   if (!phone) return null;
@@ -107,6 +107,56 @@ module.exports = async (req, res) => {
           },
           body: JSON.stringify({ conversationId: saved.conversation.id })
         }).catch(e => console.error('AI draft trigger error:', e));
+      }
+
+      // Trigger audio transcription in background
+      if (parsed.media_type === 'audio' && saved?.id) {
+        setImmediate(async () => {
+          try {
+            await updateMessageMetadata(saved.id, { transcribing: true });
+
+            let audioBuffer = null;
+
+            if (parsed.media_url?.startsWith('http')) {
+              const audioResp = await fetch(parsed.media_url, {
+                headers: { 'Accept': 'audio/*,*/*' }
+              });
+              if (audioResp.ok) {
+                audioBuffer = Buffer.from(await audioResp.arrayBuffer());
+              }
+            }
+
+            if (!audioBuffer) {
+              console.log('Webhook transcription: no downloadable audio for msg', saved.id);
+              await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: null });
+              return;
+            }
+
+            const formData = new FormData();
+            const blob = new Blob([audioBuffer], { type: 'audio/ogg' });
+            formData.append('file', blob, 'audio.ogg');
+            formData.append('model', 'whisper-large-v3');
+            formData.append('temperature', '0');
+
+            const groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${process.env.LLM_API_KEY}` },
+              body: formData
+            });
+
+            if (!groqResp.ok) {
+              const errText = await groqResp.text();
+              throw new Error(`Groq API ${groqResp.status}: ${errText}`);
+            }
+
+            const { text } = await groqResp.json();
+            await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: text });
+            console.log('Webhook transcription: success for msg', saved.id, text.length, 'chars');
+          } catch (error) {
+            console.error('Webhook transcription error:', error.message);
+            await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: null }).catch(() => {});
+          }
+        });
       }
 
       return res.status(200).json({ ok: true, conversationId: saved?.conversation?.id, messageId: saved?.id });
