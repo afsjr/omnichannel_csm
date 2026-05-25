@@ -1,5 +1,41 @@
 require('dotenv').config();
+const { supabase } = require('../lib/db');
 const { saveIncomingMessage, updateMessageMetadata } = require('../lib/messages');
+
+async function ensureAudioBucket() {
+  if (!supabase) return false;
+  try {
+    const { data: buckets } = await supabase.storage.listBuckets();
+    if (!buckets?.find(b => b.name === 'audio')) {
+      await supabase.storage.createBucket('audio', { public: true });
+      console.log('Storage: created bucket "audio"');
+    }
+    return true;
+  } catch (e) {
+    console.error('Storage: bucket check error:', e.message);
+    return false;
+  }
+}
+
+async function uploadAudioToStorage(audioBuffer, mimetype, messageId) {
+  const ext = (mimetype || 'audio/ogg').split('/')[1] || 'ogg';
+  const path = `messages/${messageId}.${ext}`;
+
+  const { error: uploadErr } = await supabase.storage
+    .from('audio')
+    .upload(path, audioBuffer, {
+      contentType: mimetype || 'audio/ogg',
+      upsert: true
+    });
+
+  if (uploadErr) throw uploadErr;
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('audio')
+    .getPublicUrl(path);
+
+  return publicUrl;
+}
 
 function normalizePhone(phone) {
   if (!phone) return null;
@@ -221,6 +257,24 @@ module.exports = async (req, res) => {
       if (!parsed.content && !parsed.media_type && !parsed.phone) {
         console.log('Webhook: no useful data', JSON.stringify(parsed));
         return res.status(200).json({ ok: true, ignored: true });
+      }
+
+      // Upload base64 audio to Supabase Storage so frontend has a playable HTTP URL
+      if (parsed.media_type === 'audio' && parsed.media_url?.startsWith('data:')) {
+        try {
+          const commaIdx = parsed.media_url.indexOf(',');
+          const buf = Buffer.from(parsed.media_url.substring(commaIdx + 1), 'base64');
+          if (buf.length > 0) {
+            const ready = await ensureAudioBucket();
+            if (ready) {
+              const publicUrl = await uploadAudioToStorage(buf, parsed.media_mimetype, `temp-${Date.now()}`);
+              console.log('WEBHOOK audio uploaded to Storage:', publicUrl.slice(0, 80));
+              parsed.media_url = publicUrl;
+            }
+          }
+        } catch (storeErr) {
+          console.error('WEBHOOK audio upload failed, keeping original URL:', storeErr.message);
+        }
       }
 
       const enrichedPayload = {
