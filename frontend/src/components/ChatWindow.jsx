@@ -259,22 +259,45 @@ export default function ChatWindow() {
                   </div>
                   {isMediaMessage(msg) && msg.metadata?.media_type !== 'audio' && (
                     <div className="media-preview">
-                      {msg.metadata?.media_type === 'image' && (
-                        <img src={msg.metadata?.media_url} alt="Imagem" onClick={() => window.open(msg.metadata?.media_url, '_blank')} />
+                      {msg.metadata?.media_type === 'image' && msg.metadata?.media_url && (
+                        <img
+                          src={msg.metadata.media_url}
+                          alt={msg.metadata.media_caption || 'Imagem'}
+                          loading="lazy"
+                          style={{ maxWidth: '300px', maxHeight: '400px', borderRadius: '8px', cursor: 'pointer' }}
+                          onClick={() => window.open(msg.metadata.media_url, '_blank')}
+                        />
                       )}
-                      {msg.metadata?.media_type === 'video' && (
-                        <video src={msg.metadata?.media_url} controls onClick={() => window.open(msg.metadata?.media_url, '_blank')} />
+                      {msg.metadata?.media_type === 'image' && !msg.metadata?.media_url && (
+                        <div className="media-placeholder">🖼️ Imagem não disponível</div>
                       )}
-                      {msg.metadata?.media_type === 'document' && (
-                        <a href={msg.metadata?.media_url} target="_blank" rel="noopener noreferrer" className="document-link">
+                      {msg.metadata?.media_type === 'video' && msg.metadata?.media_url && (
+                        <video
+                          src={msg.metadata.media_url}
+                          controls
+                          style={{ maxWidth: '300px', maxHeight: '300px', borderRadius: '8px' }}
+                        />
+                      )}
+                      {msg.metadata?.media_type === 'video' && !msg.metadata?.media_url && (
+                        <div className="media-placeholder">🎬 Vídeo não disponível</div>
+                      )}
+                      {msg.metadata?.media_type === 'document' && msg.metadata?.media_url && (
+                        <a href={msg.metadata.media_url} target="_blank" rel="noopener noreferrer" className="document-link">
                           📄 {msg.metadata?.media_caption || 'Documento'}
                         </a>
+                      )}
+                      {msg.metadata?.media_type === 'document' && !msg.metadata?.media_url && (
+                        <div className="media-placeholder">📄 Documento não disponível</div>
                       )}
                     </div>
                   )}
                   {(msg.content === '[Áudio]' || msg.metadata?.media_type === 'audio') && (
                     <div className="media-preview">
-                      {msg.metadata?.media_url?.startsWith('http') && <AudioPlayer url={msg.metadata.media_url} />}
+                      {msg.metadata?.media_url ? (
+                        <AudioPlayer url={msg.metadata.media_url} />
+                      ) : (
+                        <div className="media-placeholder">🎵 Áudio não disponível</div>
+                      )}
                       <div className="audio-transcription">
                         <span className="transcription-label">📝 Transcrição</span>
                         {msg.metadata?.audio_transcription ? (

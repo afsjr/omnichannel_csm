@@ -18,7 +18,8 @@ async function ensureMediaBucket() {
 }
 
 async function uploadMediaToStorage(buffer, mimetype, messageId) {
-  const ext = (mimetype || 'application/octet-stream').split('/')[1] || 'bin';
+  const baseMime = (mimetype || 'application/octet-stream').split(';')[0].trim();
+  const ext = baseMime.split('/')[1]?.replace('mpeg', 'mp3') || 'bin';
   const path = `messages/${messageId}.${ext}`;
 
   const { error: uploadErr } = await supabase.storage
@@ -267,13 +268,32 @@ module.exports = async (req, res) => {
           if (buf.length > 0) {
             const ready = await ensureMediaBucket();
             if (ready) {
-              const publicUrl = await uploadMediaToStorage(buf, parsed.media_mimetype, `${parsed.media_type}-${Date.now()}`);
+              const uniqueId = `${parsed.media_type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+              const publicUrl = await uploadMediaToStorage(buf, parsed.media_mimetype, uniqueId);
               console.log('WEBHOOK %s uploaded to Storage: %s', parsed.media_type, publicUrl.slice(0, 80));
               parsed.media_url = publicUrl;
             }
           }
         } catch (storeErr) {
           console.error('WEBHOOK media upload failed for %s: %s', parsed.media_type, storeErr.message);
+        }
+      }
+
+      // Fallback: if media_url is a mediaKey/directPath (not http/data:), try downloading from Evolution
+      if (parsed.media_type && parsed.media_url && !parsed.media_url.startsWith('http') && !parsed.media_url.startsWith('data:') && parsed.message_key) {
+        try {
+          const dlBuf = await downloadAudioFromEvolution(parsed.message_key);
+          if (dlBuf?.length > 0) {
+            const ready = await ensureMediaBucket();
+            if (ready) {
+              const uniqueId = `${parsed.media_type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+              const publicUrl = await uploadMediaToStorage(dlBuf, parsed.media_mimetype, uniqueId);
+              console.log('WEBHOOK %s downloaded+uploaded via Evolution: %s', parsed.media_type, publicUrl.slice(0, 80));
+              parsed.media_url = publicUrl;
+            }
+          }
+        } catch (dlErr) {
+          console.error('WEBHOOK Evolution download fallback failed for %s: %s', parsed.media_type, dlErr.message);
         }
       }
 
@@ -294,16 +314,12 @@ module.exports = async (req, res) => {
       const saved = await saveIncomingMessage(enrichedPayload);
       console.log('WEBHOOK saved: convId=%s msgId=%s', saved?.conversation?.id, saved?.id);
 
-      // Mark transcribing early so frontend shows status
+      // NOTE: Transcription disabled on Vercel Hobby (10s timeout kills the function
+      // before Groq responds, leaving transcribing:true forever).
+      // Transcription will be handled by the Fastify backend when it's online.
+      // For now, mark audio messages as needing transcription but don't attempt it.
       if (parsed.media_type === 'audio' && saved?.id) {
-        await updateMessageMetadata(saved.id, { transcribing: true }).catch(() => {});
-      }
-
-      // Fire-and-forget transcription: response returns immediately so Evolution gets HTTP 200
-      if (parsed.media_type === 'audio' && saved?.id) {
-        transcribeAudio(saved.id, parsed).catch(e =>
-          console.error('WEBHOOK transcription background error:', e)
-        );
+        await updateMessageMetadata(saved.id, { transcribing: false, audio_transcription: null }).catch(() => {});
       }
 
       // Trigger AI processing in background (fire-and-forget)
