@@ -247,7 +247,7 @@ export default function ChatWindow() {
                       </button>
                     )}
                   </div>
-                  {isMediaMessage(msg) && (
+                  {isMediaMessage(msg) && msg.metadata?.media_type !== 'audio' && (
                     <div className="media-preview">
                       {msg.metadata?.media_type === 'image' && (
                         <img src={msg.metadata?.media_url} alt="Imagem" onClick={() => window.open(msg.metadata?.media_url, '_blank')} />
@@ -255,34 +255,26 @@ export default function ChatWindow() {
                       {msg.metadata?.media_type === 'video' && (
                         <video src={msg.metadata?.media_url} controls onClick={() => window.open(msg.metadata?.media_url, '_blank')} />
                       )}
-                      {msg.metadata?.media_type === 'audio' && (
-                        <>
-                          <audio src={msg.metadata?.media_url} controls />
-                          {msg.metadata?.transcribing === true && (
-                            <div className="audio-transcription transcribing">
-                              <span className="transcription-label">📝 Transcrição</span>
-                              <p className="transcribing-text">Transcrevendo áudio...</p>
-                            </div>
-                          )}
-                          {msg.metadata?.audio_transcription && (
-                            <div className="audio-transcription">
-                              <span className="transcription-label">📝 Transcrição</span>
-                              <p>{msg.metadata.audio_transcription}</p>
-                            </div>
-                          )}
-                          {msg.metadata?.transcribing === false && !msg.metadata?.audio_transcription && (
-                            <div className="audio-transcription error">
-                              <span className="transcription-label">📝 Transcrição</span>
-                              <p className="transcription-error">Transcrição indisponível</p>
-                            </div>
-                          )}
-                        </>
-                      )}
                       {msg.metadata?.media_type === 'document' && (
                         <a href={msg.metadata?.media_url} target="_blank" rel="noopener noreferrer" className="document-link">
                           📄 {msg.metadata?.media_caption || 'Documento'}
                         </a>
                       )}
+                    </div>
+                  )}
+                  {(msg.content === '[Áudio]' || msg.metadata?.media_type === 'audio') && (
+                    <div className="media-preview">
+                      {msg.metadata?.media_url && <audio src={msg.metadata?.media_url} controls />}
+                      <div className="audio-transcription">
+                        <span className="transcription-label">📝 Transcrição</span>
+                        {msg.metadata?.audio_transcription ? (
+                          <p>{msg.metadata.audio_transcription}</p>
+                        ) : (
+                          <p className="transcribing-text">
+                            {msg.metadata?.transcribing === true ? 'Transcrevendo áudio...' : 'Transcrição pendente'}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

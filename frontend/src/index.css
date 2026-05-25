@@ -739,6 +739,11 @@ body {
   font-size: 0.8rem;
 }
 
+.audio-transcription.pending {
+  border-left-color: #9ca3af;
+  background: #f9fafb;
+}
+
 .document-link {
   display: flex;
   align-items: center;
