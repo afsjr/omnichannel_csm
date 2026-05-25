@@ -1,6 +1,16 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 import { useChatStore } from '../contexts/ChatContext'
 import { useAuthStore } from '../contexts/AuthContext'
+
+const AudioPlayer = memo(function AudioPlayer({ url }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    if (ref.current && ref.current.src !== url) {
+      ref.current.src = url
+    }
+  }, [url])
+  return <audio ref={ref} controls />
+})
 
 export default function ChatWindow() {
   const { user } = useAuthStore()
@@ -264,7 +274,7 @@ export default function ChatWindow() {
                   )}
                   {(msg.content === '[Áudio]' || msg.metadata?.media_type === 'audio') && (
                     <div className="media-preview">
-                      {msg.metadata?.media_url?.startsWith('http') && <audio src={msg.metadata?.media_url} controls />}
+                      {msg.metadata?.media_url?.startsWith('http') && <AudioPlayer url={msg.metadata.media_url} />}
                       <div className="audio-transcription">
                         <span className="transcription-label">📝 Transcrição</span>
                         {msg.metadata?.audio_transcription ? (

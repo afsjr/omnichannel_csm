@@ -48,7 +48,9 @@ function parseWebhookPayload(payload) {
     const img = msg.imageMessage;
     result.content = img.caption || '[Imagem]';
     result.media_type = 'image';
-    result.media_url = img.url || img.mediaKey || img.directPath;
+    result.media_url = img.base64
+      ? `data:${img.mimetype || 'image/jpeg'};base64,${img.base64}`
+      : (img.url || img.mediaKey || img.directPath);
     result.media_mimetype = img.mimetype || 'image/jpeg';
     result.media_caption = img.caption;
     result.media_filesize = img.fileLength;
@@ -56,16 +58,21 @@ function parseWebhookPayload(payload) {
     const vid = msg.videoMessage;
     result.content = vid.caption || '[Vídeo]';
     result.media_type = 'video';
-    result.media_url = vid.url || vid.mediaKey || vid.directPath;
+    result.media_url = vid.base64
+      ? `data:${vid.mimetype || 'video/mp4'};base64,${vid.base64}`
+      : (vid.url || vid.mediaKey || vid.directPath);
     result.media_mimetype = vid.mimetype || 'video/mp4';
     result.media_caption = vid.caption;
     result.media_filesize = vid.fileLength;
   } else if (msg?.audioMessage) {
+    const a = msg.audioMessage;
     result.content = '[Áudio]';
     result.media_type = 'audio';
-    result.media_url = msg.audioMessage.url || msg.audioMessage.mediaKey || msg.audioMessage.directPath;
-    result.media_mimetype = msg.audioMessage.mimetype || 'audio/ogg';
-    result.media_filesize = msg.audioMessage.fileLength;
+    result.media_url = a.base64
+      ? `data:${a.mimetype || 'audio/ogg'};base64,${a.base64}`
+      : (a.url || a.mediaKey || a.directPath);
+    result.media_mimetype = a.mimetype || 'audio/ogg';
+    result.media_filesize = a.fileLength;
   } else if (msg?.documentMessage) {
     const doc = msg.documentMessage;
     result.content = doc.fileName || '[Documento]';
@@ -81,6 +88,12 @@ function parseWebhookPayload(payload) {
     result.media_mimetype = 'image/webp';
   } else if (msg?.ephemeralMessage?.message) {
     return parseWebhookPayload({ ...data, message: msg.ephemeralMessage.message });
+  } else if (msg) {
+    const knownTypes = ['extendedTextMessage','conversation','imageMessage','videoMessage','audioMessage','documentMessage','stickerMessage','ephemeralMessage','buttonsMessage','templateMessage','listMessage','orderMessage'];
+    const hasKnown = Object.keys(msg).some(k => knownTypes.some(t => t === k));
+    if (!hasKnown && !result.content && !result.media_type) {
+      console.log('parseWebhookPayload: unknown message type, keys:', Object.keys(msg));
+    }
   }
 
   if (!result.content && data.text) {

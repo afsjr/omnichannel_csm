@@ -53,6 +53,12 @@ class AudioTranscriptionService {
         if (transcription) return transcription;
       }
 
+      if (metadata.media_url?.startsWith('data:')) {
+        console.log('AudioTranscription: trying data URL (base64)');
+        const transcription = await this.transcribeFromDataUrl(metadata.media_url, metadata.media_mimetype);
+        if (transcription) return transcription;
+      }
+
       const key = metadata.original_payload?.key || metadata.message_key;
       if (key?.id && key?.remoteJid) {
         console.log('AudioTranscription: trying Evolution API download');
@@ -64,6 +70,19 @@ class AudioTranscriptionService {
       return null;
     } catch (error) {
       console.error('AudioTranscription: error for message', messageId, error.message);
+      return null;
+    }
+  }
+
+  async transcribeFromDataUrl(dataUrl, mimetype) {
+    try {
+      const commaIdx = dataUrl.indexOf(',');
+      const base64 = dataUrl.substring(commaIdx + 1);
+      const buffer = Buffer.from(base64, 'base64');
+      console.log('AudioTranscription: data URL decoded, size:', buffer.length);
+      return this.transcribeBuffer(buffer, mimetype);
+    } catch (error) {
+      console.log('AudioTranscription: data URL error:', error.message);
       return null;
     }
   }
