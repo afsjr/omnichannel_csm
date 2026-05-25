@@ -136,6 +136,31 @@ class EvolutionProvider {
       throw new Error(`Download media failed: ${response.status} - ${error}`);
     }
 
+    const contentType = response.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      const base64 = data.base64 || data.data?.base64 || data.media || data.data?.media;
+
+      if (base64) {
+        const cleanBase64 = String(base64).replace(/^data:[^;]+;base64,/, '');
+        return Buffer.from(cleanBase64, 'base64');
+      }
+
+      if (data.url || data.mediaUrl || data.data?.url || data.data?.mediaUrl) {
+        const mediaUrl = data.url || data.mediaUrl || data.data.url || data.data.mediaUrl;
+        const mediaResponse = await fetch(mediaUrl, {
+          headers: { 'Accept': 'audio/*,*/*' }
+        });
+        if (!mediaResponse.ok) {
+          throw new Error(`Download media URL failed: ${mediaResponse.status}`);
+        }
+        return Buffer.from(await mediaResponse.arrayBuffer());
+      }
+
+      throw new Error('Download media response did not include base64 or url');
+    }
+
     const buffer = await response.arrayBuffer();
     return Buffer.from(buffer);
   }

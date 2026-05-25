@@ -6,7 +6,7 @@ class AudioTranscriptionService {
   }
 
   async transcribeMessage(message) {
-    const metadata = message.metadata || {};
+    const metadata = this.parseMetadata(message.metadata);
     console.log('AudioTranscription: starting for message', message.id);
 
     if (!metadata.media_url && !metadata.original_payload?.key) {
@@ -24,6 +24,19 @@ class AudioTranscriptionService {
 
     await this.finish(message.id, result);
     return result;
+  }
+
+  parseMetadata(metadata) {
+    if (!metadata) return {};
+    if (typeof metadata === 'string') {
+      try {
+        const parsed = JSON.parse(metadata);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+    return metadata;
   }
 
   async doTranscribe(messageId, metadata) {
@@ -121,6 +134,11 @@ class AudioTranscriptionService {
   }
 
   async transcribeBuffer(buffer, mimetype) {
+    if (!this.llmProvider.apiKey) {
+      console.log('AudioTranscription: LLM_API_KEY not configured');
+      return null;
+    }
+
     const baseMime = mimetype?.split(';')[0]?.trim() || 'audio/ogg';
     const url = `${this.llmProvider.baseUrl}/audio/transcriptions`;
     const formData = new FormData();
@@ -128,6 +146,7 @@ class AudioTranscriptionService {
     formData.append('file', blob, 'audio.ogg');
     formData.append('model', 'whisper-large-v3');
     formData.append('temperature', '0');
+    formData.append('language', 'pt');
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);

@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { getSupabase } = require('../lib/db');
 const { getAction, getUserFromToken } = require('../lib/route-helper');
 

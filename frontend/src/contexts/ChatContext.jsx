@@ -3,6 +3,21 @@ import { useToastStore } from '../stores/toastStore'
 
 const API = '/api'
 
+function normalizeMessage(message) {
+  if (!message) return message
+  if (typeof message.metadata !== 'string') return message
+
+  try {
+    return { ...message, metadata: JSON.parse(message.metadata) }
+  } catch {
+    return { ...message, metadata: {} }
+  }
+}
+
+function normalizeMessages(messages = []) {
+  return messages.map(normalizeMessage)
+}
+
 async function apiFetch(endpoint, options = {}) {
   const auth = JSON.parse(localStorage.getItem('omnichat-auth') || '{}')
   const state = auth.state || {}
@@ -60,6 +75,20 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  loadQueue: async () => get().fetchQueue(),
+
+  loadMyConversations: async () => get().fetchMyConversations(),
+
+  updateConversationDraft: (conversationId, draft, confidence) => {
+    set((s) => ({
+      draft: s.activeConversation?.id === conversationId ? draft : s.draft,
+      draftConfidence: s.activeConversation?.id === conversationId ? confidence : s.draftConfidence,
+      activeConversation: s.activeConversation?.id === conversationId
+        ? { ...s.activeConversation, ai_draft: draft, ai_confidence: confidence }
+        : s.activeConversation
+    }))
+  },
+
   fetchResolvedConversations: async (companyId = 1) => {
     const url = `/messages/resolved?companyId=${companyId}`
     const res = await apiFetch(url)
@@ -76,7 +105,7 @@ export const useChatStore = create((set, get) => ({
     if (data.ok) {
       set({ 
         activeConversation: data.data.conversation,
-        messages: data.data.messages || [],
+        messages: normalizeMessages(data.data.messages),
         draft: data.data.conversation.ai_draft,
         draftConfidence: data.data.conversation.ai_confidence,
         isLoading: false
@@ -91,7 +120,7 @@ export const useChatStore = create((set, get) => ({
     const data = await res.json()
     if (data.ok) {
       set({
-        messages: data.data.messages || [],
+        messages: normalizeMessages(data.data.messages),
         draft: data.data.conversation.ai_draft,
         draftConfidence: data.data.conversation.ai_confidence,
       })
@@ -189,7 +218,7 @@ export const useChatStore = create((set, get) => ({
     })
     const data = await res.json()
     if (data.ok) {
-      set((s) => ({ messages: [...s.messages, data.message] }))
+      set((s) => ({ messages: [...s.messages, normalizeMessage(data.message)] }))
     } else {
       useToastStore.getState().addToast(data.error || 'Erro ao enviar mensagem', 'error')
     }
@@ -306,7 +335,7 @@ export const useChatStore = create((set, get) => ({
     })
     const data = await res.json()
     if (data.ok) {
-      set((s) => ({ messages: [...s.messages, data.message] }))
+      set((s) => ({ messages: [...s.messages, normalizeMessage(data.message)] }))
     } else {
       useToastStore.getState().addToast(data.error || 'Erro ao enviar mídia', 'error')
     }
@@ -328,7 +357,7 @@ export const useChatStore = create((set, get) => ({
     return data
   },
 
-  addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
+  addMessage: (message) => set((s) => ({ messages: [...s.messages, normalizeMessage(message)] })),
   clearError: () => set({ error: null })
 }))
 

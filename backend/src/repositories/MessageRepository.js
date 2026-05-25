@@ -5,6 +5,19 @@ class MessageRepository extends SupabaseBaseRepository {
     super(database, 'messages');
   }
 
+  parseMetadata(metadata) {
+    if (!metadata) return {};
+    if (typeof metadata === 'string') {
+      try {
+        const parsed = JSON.parse(metadata);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+    return metadata;
+  }
+
   async findByConversation(conversationId, options = {}) {
     let query = this.client
       .from('messages')
@@ -52,7 +65,7 @@ async create(data) {
       content: data.content,
       direction: data.direction || 'incoming',
       status: data.status || 'received',
-      metadata: data.metadata ? (typeof data.metadata === 'string' ? data.metadata : JSON.stringify(data.metadata)) : null
+      metadata: data.metadata || null
     };
 
     const { data: result, error } = await this.client
@@ -94,11 +107,11 @@ async createIncoming(conversationId, content, metadata = {}) {
       .eq('id', messageId)
       .maybeSingle();
 
-    const mergedMetadata = { ...(existing?.metadata || {}), ...updates };
+    const mergedMetadata = { ...this.parseMetadata(existing?.metadata), ...updates };
 
     const { data, error } = await this.client
       .from('messages')
-      .update({ metadata: typeof mergedMetadata === 'object' ? JSON.stringify(mergedMetadata) : mergedMetadata })
+      .update({ metadata: mergedMetadata })
       .eq('id', messageId)
       .select()
       .maybeSingle();

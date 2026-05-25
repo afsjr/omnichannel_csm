@@ -1,8 +1,67 @@
+require('dotenv').config();
 const { saveIncomingMessage, updateMessageMetadata } = require('../lib/messages');
 
 function normalizePhone(phone) {
   if (!phone) return null;
   return phone.replace(/@s\.whatsapp\.net/, '').replace(/@g\.us/, '');
+}
+
+async function fetchAudioFromUrl(url) {
+  const controller = new AbortController();
+  const fetchTimeout = setTimeout(() => controller.abort(), 30000);
+  const audioResp = await fetch(url, {
+    signal: controller.signal,
+    headers: { 'Accept': 'audio/*,*/*' }
+  });
+  clearTimeout(fetchTimeout);
+
+  if (!audioResp.ok) {
+    throw new Error(`Audio URL ${audioResp.status}`);
+  }
+
+  return Buffer.from(await audioResp.arrayBuffer());
+}
+
+async function downloadAudioFromEvolution(messageKey) {
+  const baseUrl = process.env.EVOLUTION_API_URL;
+  const apiKey = process.env.EVOLUTION_API_KEY;
+  const instance = process.env.EVOLUTION_INSTANCE;
+
+  if (!baseUrl || !apiKey || !instance || !messageKey?.id || !messageKey?.remoteJid) {
+    return null;
+  }
+
+  const response = await fetch(`${baseUrl}/message/downloadMedia/${instance}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: apiKey
+    },
+    body: JSON.stringify({ messageKey })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Evolution download ${response.status}: ${error.slice(0, 200)}`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    return Buffer.from(await response.arrayBuffer());
+  }
+
+  const data = await response.json();
+  const base64 = data.base64 || data.data?.base64 || data.media || data.data?.media;
+  if (base64) {
+    return Buffer.from(String(base64).replace(/^data:[^;]+;base64,/, ''), 'base64');
+  }
+
+  const mediaUrl = data.url || data.mediaUrl || data.data?.url || data.data?.mediaUrl;
+  if (mediaUrl) {
+    return fetchAudioFromUrl(mediaUrl);
+  }
+
+  throw new Error('Evolution download did not include audio bytes, base64 or URL');
 }
 
 function parseEvolutionPayload(payload) {
@@ -32,7 +91,17 @@ function parseEvolutionPayload(payload) {
     msgObj = payload.messages[0];
   }
 
-  const result = { content: '', media_type: null, media_url: null, media_caption: null, phone: null, contact_name: null };
+  const result = {
+    content: '',
+    media_type: null,
+    media_url: null,
+    media_mimetype: null,
+    media_caption: null,
+    media_filesize: null,
+    message_key: msgObj.key || null,
+    phone: null,
+    contact_name: null
+  };
   if (msgObj.key?.remoteJid) result.phone = normalizePhone(msgObj.key.remoteJid);
   if (msgObj.pushName) result.contact_name = msgObj.pushName;
   
@@ -40,10 +109,10 @@ function parseEvolutionPayload(payload) {
   
   if (typeof msg.conversation === 'string') { result.content = msg.conversation; }
   else if (msg.extendedTextMessage?.text) { result.content = msg.extendedTextMessage.text; }
-  else if (msg.imageMessage) { const i = msg.imageMessage; result.content = i.caption || '[Imagem]'; result.media_type = 'image'; result.media_url = i.url || i.mediaKey; result.media_caption = i.caption; }
-  else if (msg.videoMessage) { const v = msg.videoMessage; result.content = v.caption || '[Vídeo]'; result.media_type = 'video'; result.media_url = v.url || v.mediaKey; result.media_caption = v.caption; }
-  else if (msg.audioMessage) { result.content = '[Áudio]'; result.media_type = 'audio'; result.media_url = msg.audioMessage.url || msg.audioMessage.mediaKey; }
-  else if (msg.documentMessage) { const d = msg.documentMessage; result.content = d.fileName || '[Documento]'; result.media_type = 'document'; result.media_url = d.url || d.mediaKey; }
+  else if (msg.imageMessage) { const i = msg.imageMessage; result.content = i.caption || '[Imagem]'; result.media_type = 'image'; result.media_url = i.url || i.mediaKey || i.directPath; result.media_mimetype = i.mimetype || 'image/jpeg'; result.media_caption = i.caption; result.media_filesize = i.fileLength; }
+  else if (msg.videoMessage) { const v = msg.videoMessage; result.content = v.caption || '[Vídeo]'; result.media_type = 'video'; result.media_url = v.url || v.mediaKey || v.directPath; result.media_mimetype = v.mimetype || 'video/mp4'; result.media_caption = v.caption; result.media_filesize = v.fileLength; }
+  else if (msg.audioMessage) { const a = msg.audioMessage; result.content = '[Áudio]'; result.media_type = 'audio'; result.media_url = a.url || a.mediaKey || a.directPath; result.media_mimetype = a.mimetype || 'audio/ogg'; result.media_filesize = a.fileLength; }
+  else if (msg.documentMessage) { const d = msg.documentMessage; result.content = d.fileName || '[Documento]'; result.media_type = 'document'; result.media_url = d.url || d.mediaKey || d.directPath; result.media_mimetype = d.mimetype; result.media_caption = d.caption || d.title; result.media_filesize = d.fileLength; }
   
   if (!result.phone && msgObj.from) result.phone = normalizePhone(msgObj.from);
   
@@ -89,7 +158,9 @@ module.exports = async (req, res) => {
         contact_name: parsed.contact_name, 
         media_type: parsed.media_type, 
         media_url: parsed.media_url, 
+        media_mimetype: parsed.media_mimetype,
         media_caption: parsed.media_caption, 
+        media_filesize: parsed.media_filesize,
         channel: 'whatsapp' 
       };
       
@@ -122,16 +193,15 @@ module.exports = async (req, res) => {
             let audioBuffer = null;
 
             if (parsed.media_url?.startsWith('http')) {
-              const controller = new AbortController();
-              const fetchTimeout = setTimeout(() => controller.abort(), 30000);
-              const audioResp = await fetch(parsed.media_url, {
-                signal: controller.signal,
-                headers: { 'Accept': 'audio/*,*/*' }
+              audioBuffer = await fetchAudioFromUrl(parsed.media_url);
+            }
+
+            if (!audioBuffer && parsed.message_key) {
+              audioBuffer = await downloadAudioFromEvolution({
+                id: parsed.message_key.id,
+                remoteJid: parsed.message_key.remoteJid,
+                fromMe: parsed.message_key.fromMe || false
               });
-              clearTimeout(fetchTimeout);
-              if (audioResp.ok) {
-                audioBuffer = Buffer.from(await audioResp.arrayBuffer());
-              }
             }
 
             if (!audioBuffer) {
@@ -142,10 +212,11 @@ module.exports = async (req, res) => {
             }
 
             const formData = new FormData();
-            const blob = new Blob([audioBuffer], { type: 'audio/ogg' });
+            const blob = new Blob([audioBuffer], { type: parsed.media_mimetype || 'audio/ogg' });
             formData.append('file', blob, 'audio.ogg');
             formData.append('model', 'whisper-large-v3');
             formData.append('temperature', '0');
+            formData.append('language', 'pt');
 
             const groqController = new AbortController();
             const groqTimeout = setTimeout(() => groqController.abort(), 60000);
