@@ -256,7 +256,15 @@ export default function ChatWindow() {
                         <video src={msg.metadata?.media_url} controls onClick={() => window.open(msg.metadata?.media_url, '_blank')} />
                       )}
                       {msg.metadata?.media_type === 'audio' && (
-                        <audio src={msg.metadata?.media_url} controls />
+                        <>
+                          <audio src={msg.metadata?.media_url} controls />
+                          {msg.metadata?.audio_transcription && (
+                            <div className="audio-transcription">
+                              <span className="transcription-label">📝 Transcrição</span>
+                              <p>{msg.metadata.audio_transcription}</p>
+                            </div>
+                          )}
+                        </>
                       )}
                       {msg.metadata?.media_type === 'document' && (
                         <a href={msg.metadata?.media_url} target="_blank" rel="noopener noreferrer" className="document-link">

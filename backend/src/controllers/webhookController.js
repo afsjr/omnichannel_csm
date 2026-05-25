@@ -126,6 +126,17 @@ async function receiveWebhook(req, reply) {
     ws.toDepartment(req, deptId, 'queue_updated', { departmentId: deptId });
   }
 
+  if (parsedMessage.media_type === 'audio') {
+    setImmediate(async () => {
+      try {
+        const transcriptionService = req.server.container.services.audioTranscription;
+        await transcriptionService.transcribeMessage(result.message);
+      } catch (error) {
+        console.error('Audio transcription error:', error);
+      }
+    });
+  }
+
   setImmediate(async () => {
     try {
       await req.server.container.ai.aiProcessingService.processAll();

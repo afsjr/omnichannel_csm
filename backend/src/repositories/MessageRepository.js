@@ -66,16 +66,15 @@ async create(data) {
   }
 
 async createIncoming(conversationId, content, metadata = {}) {
-    const msgMetadata = {
-      ...metadata
-    };
+    const msgMetadata = { ...metadata };
+    const source = metadata.original_payload || metadata;
 
-    if (metadata.media_type) {
-      msgMetadata.media_type = metadata.media_type;
-      msgMetadata.media_url = metadata.media_url;
-      msgMetadata.media_mimetype = metadata.media_mimetype;
-      msgMetadata.media_caption = metadata.media_caption;
-      msgMetadata.media_filesize = metadata.media_filesize;
+    if (source.media_type) {
+      msgMetadata.media_type = source.media_type;
+      msgMetadata.media_url = source.media_url;
+      msgMetadata.media_mimetype = source.media_mimetype;
+      msgMetadata.media_caption = source.media_caption;
+      msgMetadata.media_filesize = source.media_filesize;
     }
 
     return this.create({
@@ -86,6 +85,26 @@ async createIncoming(conversationId, content, metadata = {}) {
       status: 'received',
       metadata: msgMetadata
     });
+  }
+
+  async updateMetadata(messageId, updates) {
+    const { data: existing } = await this.client
+      .from('messages')
+      .select('metadata')
+      .eq('id', messageId)
+      .single();
+
+    const mergedMetadata = { ...(existing?.metadata || {}), ...updates };
+
+    const { data, error } = await this.client
+      .from('messages')
+      .update({ metadata: typeof mergedMetadata === 'object' ? JSON.stringify(mergedMetadata) : mergedMetadata })
+      .eq('id', messageId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { rows: [data], rowCount: 1 };
   }
 
   async createOutgoing(conversationId, content, senderId, status = 'sent') {

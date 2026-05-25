@@ -11,6 +11,7 @@ const InstanceRepository = require('./repositories/InstanceRepository');
 const ChatService = require('./services/ChatService');
 const InstanceService = require('./services/InstanceService');
 const AuthService = require('./services/AuthService');
+const AudioTranscriptionService = require('./services/AudioTranscriptionService');
 const { createAIServiceContainer } = require('./services/AIService');
 const LLMProvider = require('./providers/LLMProvider');
 const EvolutionProvider = require('./providers/EvolutionProvider');
@@ -48,6 +49,11 @@ function createContainer(config = {}) {
     instance: new InstanceService({
       instanceRepository: repositories.instance,
       evolutionProvider: providers.evolution
+    }),
+    audioTranscription: new AudioTranscriptionService({
+      messageRepository: repositories.message,
+      evolutionProvider: providers.evolution,
+      llmProvider: providers.llm
     })
   };
 

@@ -123,6 +123,23 @@ class EvolutionProvider {
     return response.json();
   }
 
+  async downloadMedia(messageKey) {
+    const url = `${this.baseUrl}/message/downloadMedia/${this.instanceName}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ messageKey })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Download media failed: ${response.status} - ${error}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    return Buffer.from(buffer);
+  }
+
   async getInstanceStatus() {
     const url = `${this.baseUrl}/instance/connectionState/${this.instanceName}`;
     const response = await fetch(url, {

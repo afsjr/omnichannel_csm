@@ -61,6 +61,34 @@ class LLMProvider {
     return this.chat(messages, { temperature: 0.1 });
   }
 
+  async transcribeAudio(audioBuffer, mimetype = 'audio/ogg') {
+    if (!this.apiKey) {
+      throw new Error('LLM_API_KEY not configured');
+    }
+
+    const url = `${this.baseUrl}/audio/transcriptions`;
+    const formData = new FormData();
+    const blob = new Blob([audioBuffer], { type: mimetype });
+    formData.append('file', blob, 'audio.ogg');
+    formData.append('model', 'whisper-large-v3');
+    formData.append('temperature', '0');
+    formData.append('language', 'pt');
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${this.apiKey}` },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Transcription failed: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    return data.text;
+  }
+
   async generateDraft(conversationHistory, departmentContext, systemPrompt) {
     const messages = [
       { role: 'system', content: systemPrompt },
