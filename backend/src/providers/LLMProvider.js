@@ -66,19 +66,25 @@ class LLMProvider {
       throw new Error('LLM_API_KEY not configured');
     }
 
+    const baseMime = mimetype?.split(';')[0]?.trim() || 'audio/ogg';
     const url = `${this.baseUrl}/audio/transcriptions`;
     const formData = new FormData();
-    const blob = new Blob([audioBuffer], { type: mimetype });
+    const blob = new Blob([audioBuffer], { type: baseMime });
     formData.append('file', blob, 'audio.ogg');
     formData.append('model', 'whisper-large-v3');
     formData.append('temperature', '0');
     formData.append('language', 'pt');
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${this.apiKey}` },
-      body: formData
+      body: formData,
+      signal: controller.signal
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const error = await response.text();

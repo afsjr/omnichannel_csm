@@ -130,7 +130,17 @@ async function receiveWebhook(req, reply) {
     setImmediate(async () => {
       try {
         const transcriptionService = req.server.container.services.audioTranscription;
-        await transcriptionService.transcribeMessage(result.message);
+        const transcription = await transcriptionService.transcribeMessage(result.message);
+
+        if (transcription) {
+          const updatedConv = await chatService.getConversationWithMessages(result.conversation.id);
+          if (updatedConv) {
+            ws.toConversation(req, result.conversation.id, 'message_updated', {
+              conversationId: result.conversation.id,
+              messages: updatedConv.messages
+            });
+          }
+        }
       } catch (error) {
         console.error('Audio transcription error:', error);
       }

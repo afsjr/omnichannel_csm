@@ -258,10 +258,22 @@ export default function ChatWindow() {
                       {msg.metadata?.media_type === 'audio' && (
                         <>
                           <audio src={msg.metadata?.media_url} controls />
+                          {msg.metadata?.transcribing === true && (
+                            <div className="audio-transcription transcribing">
+                              <span className="transcription-label">📝 Transcrição</span>
+                              <p className="transcribing-text">Transcrevendo áudio...</p>
+                            </div>
+                          )}
                           {msg.metadata?.audio_transcription && (
                             <div className="audio-transcription">
                               <span className="transcription-label">📝 Transcrição</span>
                               <p>{msg.metadata.audio_transcription}</p>
+                            </div>
+                          )}
+                          {msg.metadata?.transcribing === false && !msg.metadata?.audio_transcription && (
+                            <div className="audio-transcription error">
+                              <span className="transcription-label">📝 Transcrição</span>
+                              <p className="transcription-error">Transcrição indisponível</p>
                             </div>
                           )}
                         </>

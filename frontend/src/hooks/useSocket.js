@@ -23,6 +23,13 @@ const useSocket = () => {
     socketService.on('conversation_assigned', (data) => {
       loadMyConversations();
     });
+
+    socketService.on('message_updated', (data) => {
+      const store = useChatStore.getState();
+      if (store.activeConversation?.id === data.conversationId) {
+        store.refreshMessages(data.conversationId);
+      }
+    });
   };
 
   const cleanupSocketListeners = () => {
@@ -30,6 +37,7 @@ const useSocket = () => {
     socketService.off('draft_updated');
     socketService.off('ai_processing_complete');
     socketService.off('conversation_assigned');
+    socketService.off('message_updated');
   };
 
   return {

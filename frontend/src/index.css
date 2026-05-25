@@ -718,6 +718,27 @@ body {
   word-wrap: break-word;
 }
 
+.audio-transcription.transcribing {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.audio-transcription .transcribing-text {
+  color: #92400e;
+  font-style: italic;
+  font-size: 0.8rem;
+}
+
+.audio-transcription.error {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+
+.audio-transcription .transcription-error {
+  color: #991b1b;
+  font-size: 0.8rem;
+}
+
 .document-link {
   display: flex;
   align-items: center;
