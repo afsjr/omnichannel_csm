@@ -90,6 +90,12 @@ async createIncoming(conversationId, content, metadata = {}) {
       msgMetadata.media_filesize = source.media_filesize;
     }
 
+    const key = source.key || source.message_key;
+    if (key) {
+      msgMetadata.message_key = key;
+      msgMetadata.original_payload = { key };
+    }
+
     return this.create({
       conversationId,
       senderType: 'contact',

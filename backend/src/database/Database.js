@@ -10,10 +10,11 @@ class SupabaseDatabase {
       throw new Error('SUPABASE_URL and SUPABASE_KEY are required');
     }
 
-    const ws = require('ws');
-    this.client = createClient(this.url, this.key, {
+    let ws;
+    try { ws = require('ws'); } catch {}
+    this.client = createClient(this.url, this.key, ws ? {
       realtime: { transport: ws }
-    });
+    } : {});
     this.serviceClient = this.serviceKey ? createClient(this.url, this.serviceKey) : null;
   }
 
